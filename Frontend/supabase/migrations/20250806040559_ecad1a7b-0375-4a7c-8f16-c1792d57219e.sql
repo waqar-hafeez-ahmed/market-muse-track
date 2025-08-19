@@ -1,0 +1,20 @@
+-- Fix precision issues with exact values
+UPDATE portfolio_holdings SET avg_cost = 139.5122838 WHERE symbol = 'AAPL';
+UPDATE portfolio_holdings SET avg_cost = 24.49333333 WHERE symbol = 'AI';
+UPDATE portfolio_holdings SET avg_cost = 97.6444 WHERE symbol = 'ARKQ';
+UPDATE portfolio_holdings SET avg_cost = 34.178 WHERE symbol = 'ARQQ';
+UPDATE portfolio_holdings SET avg_cost = 303.526 WHERE symbol = 'COIN';
+UPDATE portfolio_holdings SET avg_cost = 105.1263636 WHERE symbol = 'CRWV';
+UPDATE portfolio_holdings SET avg_cost = 17.73766667 WHERE symbol = 'DJT';
+UPDATE portfolio_holdings SET avg_cost = 303.012 WHERE symbol = 'GLD';
+UPDATE portfolio_holdings SET avg_cost = 121.1545397 WHERE symbol = 'GOOG';
+UPDATE portfolio_holdings SET avg_cost = 259.8641667 WHERE symbol = 'IBM';
+UPDATE portfolio_holdings SET avg_cost = 40.212 WHERE symbol = 'IONQ';
+UPDATE portfolio_holdings SET avg_cost = 368.2986021 WHERE symbol = 'META';
+UPDATE portfolio_holdings SET avg_cost = 512.885 WHERE symbol = 'MSFT';
+UPDATE portfolio_holdings SET avg_cost = 141.8585309 WHERE symbol = 'NVDA';
+UPDATE portfolio_holdings SET avg_cost = 158.1833333 WHERE symbol = 'PLTR';
+UPDATE portfolio_holdings SET avg_cost = 17.88982143 WHERE symbol = 'QBTS';
+UPDATE portfolio_holdings SET avg_cost = 15.25507692 WHERE symbol = 'QUBT';
+UPDATE portfolio_holdings SET avg_cost = 14.45653846 WHERE symbol = 'RGTI';
+UPDATE portfolio_holdings SET avg_cost = 77.78923077 WHERE symbol = 'ZYX';
