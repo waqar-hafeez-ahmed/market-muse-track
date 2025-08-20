@@ -2,31 +2,33 @@ import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, DollarSign, Percent } from "lucide-react";
 
 interface PortfolioSummaryProps {
-  totalValue: number;
-  dayChange: number;
-  dayChangePercent: number;
-  totalGainLoss: number;
-  totalGainLossPercent: number;
+  totalValue?: number;
+  dayChange?: number;
+  dayChangePercent?: number;
+  totalGainLoss?: number;
+  totalGainLossPercent?: number;
 }
 
 export const PortfolioSummary = ({
-  totalValue,
-  dayChange,
-  dayChangePercent,
-  totalGainLoss,
-  totalGainLossPercent,
+  totalValue = 0,
+  dayChange = 0,
+  dayChangePercent = 0,
+  totalGainLoss = 0,
+  totalGainLossPercent = 0,
 }: PortfolioSummaryProps) => {
-  const isPositiveDay = dayChange >= 0;
-  const isPositiveTotal = totalGainLoss >= 0;
+  const isPositiveDay = (dayChange || 0) >= 0;
+  const isPositiveTotal = (totalGainLoss || 0) >= 0;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Total Portfolio Value</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Total Portfolio Value
+            </p>
             <p className="text-3xl font-bold text-foreground">
-              ${totalValue.toLocaleString()}
+              ${(totalValue || 0).toLocaleString()}
             </p>
           </div>
           <DollarSign className="h-8 w-8 text-primary" />
@@ -36,15 +38,27 @@ export const PortfolioSummary = ({
       <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Today's Change</p>
-            <p className={`text-2xl font-bold ${isPositiveDay ? 'text-profit' : 'text-loss'}`}>
-              {isPositiveDay ? '+' : ''}${dayChange.toLocaleString()}
+            <p className="text-sm font-medium text-muted-foreground">
+              Today's Change
             </p>
-            <p className={`text-sm ${isPositiveDay ? 'text-profit' : 'text-loss'}`}>
-              {isPositiveDay ? '+' : ''}{dayChangePercent.toFixed(2)}%
+            <p
+              className={`text-2xl font-bold ${
+                (dayChange || 0) >= 0 ? "text-profit" : "text-loss"
+              }`}
+            >
+              {(dayChange || 0) >= 0 ? "+" : ""}$
+              {(dayChange || 0).toLocaleString()}
+            </p>
+            <p
+              className={`text-sm ${
+                (dayChange || 0) >= 0 ? "text-profit" : "text-loss"
+              }`}
+            >
+              {(dayChange || 0) >= 0 ? "+" : ""}
+              {(dayChangePercent || 0).toFixed(2)}%
             </p>
           </div>
-          {isPositiveDay ? (
+          {(dayChange || 0) >= 0 ? (
             <TrendingUp className="h-8 w-8 text-profit" />
           ) : (
             <TrendingDown className="h-8 w-8 text-loss" />
@@ -55,12 +69,24 @@ export const PortfolioSummary = ({
       <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Total Gain/Loss</p>
-            <p className={`text-2xl font-bold ${isPositiveTotal ? 'text-profit' : 'text-loss'}`}>
-              {isPositiveTotal ? '+' : ''}${totalGainLoss.toLocaleString()}
+            <p className="text-sm font-medium text-muted-foreground">
+              Total Gain/Loss
             </p>
-            <p className={`text-sm ${isPositiveTotal ? 'text-profit' : 'text-loss'}`}>
-              {isPositiveTotal ? '+' : ''}{totalGainLossPercent.toFixed(2)}%
+            <p
+              className={`text-2xl font-bold ${
+                (totalGainLoss || 0) >= 0 ? "text-profit" : "text-loss"
+              }`}
+            >
+              {(totalGainLoss || 0) >= 0 ? "+" : ""}$
+              {(totalGainLoss || 0).toLocaleString()}
+            </p>
+            <p
+              className={`text-sm ${
+                (totalGainLoss || 0) >= 0 ? "text-profit" : "text-loss"
+              }`}
+            >
+              {(totalGainLoss || 0) >= 0 ? "+" : ""}
+              {(totalGainLossPercent || 0).toFixed(2)}%
             </p>
           </div>
           <Percent className="h-8 w-8 text-primary" />
@@ -70,17 +96,34 @@ export const PortfolioSummary = ({
       <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Portfolio Performance</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Portfolio Performance
+            </p>
             <div className="mt-2">
-              <div className={`h-2 w-full rounded-full ${isPositiveTotal ? 'bg-profit/20' : 'bg-loss/20'}`}>
-                <div 
-                  className={`h-2 rounded-full ${isPositiveTotal ? 'bg-profit' : 'bg-loss'}`}
-                  style={{ width: `${Math.min(Math.abs(totalGainLossPercent), 100)}%` }}
+              <div
+                className={`h-2 w-full rounded-full ${
+                  (totalGainLoss || 0) >= 0 ? "bg-profit/20" : "bg-loss/20"
+                }`}
+              >
+                <div
+                  className={`h-2 rounded-full ${
+                    (totalGainLoss || 0) >= 0 ? "bg-profit" : "bg-loss"
+                  }`}
+                  style={{
+                    width: `${Math.min(
+                      Math.abs(totalGainLossPercent || 0),
+                      100
+                    )}%`,
+                  }}
                 />
               </div>
             </div>
-            <p className={`text-lg font-semibold mt-2 ${isPositiveTotal ? 'text-profit' : 'text-loss'}`}>
-              {isPositiveTotal ? 'Profitable' : 'Loss'}
+            <p
+              className={`text-lg font-semibold mt-2 ${
+                (totalGainLoss || 0) >= 0 ? "text-profit" : "text-loss"
+              }`}
+            >
+              {(totalGainLoss || 0) >= 0 ? "Profitable" : "Loss"}
             </p>
           </div>
         </div>
