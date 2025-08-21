@@ -72,7 +72,7 @@ const Index = () => {
             data={mockPortfolioData.chartData}
             timeRange="Last 6 Months"
           />
-          <MarketNews news={mockPortfolioData.news} />
+          <MarketNews />
         </div>
 
         {/* Holdings Table */}

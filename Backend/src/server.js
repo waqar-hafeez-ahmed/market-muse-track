@@ -31,7 +31,7 @@ app.use(rateLimit({ windowMs: 60 * 1000, max: 100 }));
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/portfolios", portfolioRoutes); // Portfolio routes
 app.use("/api/transactions", transactionsRouter); // Transactions routes
-app.use("/news", newsRoutes);
+app.use("/api/news", newsRoutes);
 
 const PORT = process.env.PORT || 4000;
 

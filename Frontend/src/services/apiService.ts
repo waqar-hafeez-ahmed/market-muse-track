@@ -43,3 +43,8 @@ export const transactionAPI = {
       body: JSON.stringify(transaction),
     }),
 };
+
+export const newsAPI = {
+  getMarketNews: () => apiCall("/news"),
+  getStockNews: (symbol: string) => apiCall(`/news/${symbol}`),
+};
