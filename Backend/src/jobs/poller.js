@@ -4,69 +4,91 @@ import Asset from "../models/Asset.js";
 import { getLatestPrices } from "../services/priceService.js";
 import { emitPricesUpdate } from "../sockets/index.js";
 
-const POLL_MS = Number(process.env.POLL_INTERVAL_MS) || 70000;
+const STOCK_POLL_MS = 300_000; // 5 minutes
+const CRYPTO_POLL_MS = 20_000; // 20 seconds
 
-async function collectUniqueSymbols() {
-  // 1) Symbols stored directly on transactions (if any)
-  const txSymbolsRaw = await Transaction.distinct("symbol", {
-    symbol: { $exists: true, $type: "string", $ne: "" },
-  });
+// 🗂️ Collect symbols from both Transactions and Assets
+async function collectSymbolsByType() {
+  try {
+    // Distinct transaction symbols
+    const txSymbolsRaw = await Transaction.distinct("symbol", {
+      symbol: { $exists: true, $type: "string", $ne: "" },
+    });
 
-  // 2) Asset symbols via assetId references
-  const assetIds = await Transaction.distinct("assetId", {
-    assetId: { $exists: true, $type: "objectId" },
-  });
+    // Distinct assetIds
+    const assetIds = await Transaction.distinct("assetId", {
+      assetId: { $exists: true, $type: "objectId" },
+    });
 
-  let assetSymbolsRaw = [];
-  if (assetIds.length) {
-    const assets = await Asset.find(
-      { _id: { $in: assetIds } },
-      { symbol: 1, _id: 0 }
-    ).lean();
-    assetSymbolsRaw = assets.map((a) => a.symbol).filter(Boolean);
+    let assetSymbolsRaw = [];
+    if (assetIds.length) {
+      const assets = await Asset.find(
+        { _id: { $in: assetIds } },
+        { symbol: 1, type: 1, _id: 0 }
+      ).lean();
+
+      assetSymbolsRaw = assets
+        .filter((a) => a.symbol)
+        .map((a) => ({
+          symbol: a.symbol.toUpperCase(),
+          type: a.type?.toLowerCase() || "unknown",
+        }));
+    }
+
+    // Merge tx + asset symbols, transactions default to unknown
+    const all = [
+      ...txSymbolsRaw.map((s) => ({
+        symbol: s.toUpperCase(),
+        type: "unknown",
+      })),
+      ...assetSymbolsRaw,
+    ];
+
+    // Deduplicate by symbol (last seen type wins)
+    const bySymbol = {};
+    for (let { symbol, type } of all) {
+      bySymbol[symbol] = type;
+    }
+
+    const stocks = Object.keys(bySymbol).filter((s) => bySymbol[s] === "stock");
+    const cryptos = Object.keys(bySymbol).filter(
+      (s) => bySymbol[s] === "crypto"
+    );
+
+    console.log("✅ Extracted symbols:", { stocks, cryptos });
+    return { stocks, cryptos };
+  } catch (err) {
+    console.error("❌ Error in collectSymbolsByType:", err.message);
+    return { stocks: [], cryptos: [] };
   }
-
-  // 3) Merge + UPPERCASE + dedupe
-  const all = [...txSymbolsRaw, ...assetSymbolsRaw]
-    .filter((s) => typeof s === "string")
-    .map((s) => s.toUpperCase());
-
-  return [...new Set(all)];
 }
 
-export function startPoller(interval = POLL_MS) {
+export async function startPoller() {
+  const { stocks, cryptos } = await collectSymbolsByType();
+
+  // --- CRYPTO POLLER ---
   setInterval(async () => {
     try {
-      // Gather once per tick
-      const uniqueSymbols = await collectUniqueSymbols();
+      const { cryptos } = await collectSymbolsByType();
+      if (!cryptos.length) return;
+      const prices = await getLatestPrices(cryptos, "crypto");
+      if (prices) emitPricesUpdate(Object.values(prices));
+    } catch (err) {
+      console.error("❌ Crypto poller error:", err.message);
+    }
+  }, CRYPTO_POLL_MS);
 
-      if (!uniqueSymbols.length) {
-        console.warn(
-          "⚠️ No valid symbols found in DB. Check that either Transaction.symbol exists or Transaction.assetId points to an Asset with a symbol."
-        );
-        return;
-      }
-
-      console.log("✅ Extracted uniqueSymbols:", uniqueSymbols);
-
-      // Fetch latest prices (stocks + crypto handled inside priceService)
-      const prices = await getLatestPrices(uniqueSymbols);
-
-      // Normalize to array payload
-      const payload = Array.isArray(prices)
-        ? prices
-        : prices
-        ? Object.values(prices)
-        : [];
-
-      if (payload.length) {
-        emitPricesUpdate(payload);
-        console.log("📡 Emitted prices:update", payload.length, "items");
-      } else {
-        console.warn("⚠️ getLatestPrices returned no data for:", uniqueSymbols);
+  // --- STOCK POLLER ---
+  setInterval(async () => {
+    try {
+      const { stocks } = await collectSymbolsByType();
+      if (!stocks.length) return;
+      const prices = await getLatestPrices(stocks, "stock");
+      if (prices) {
+        emitPricesUpdate(Object.values(prices));
       }
     } catch (err) {
-      console.error("❌ Poller error:", err?.stack || err?.message || err);
+      console.error("❌ Stock poller error:", err.message);
     }
-  }, interval);
+  }, STOCK_POLL_MS);
 }

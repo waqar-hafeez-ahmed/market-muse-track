@@ -1,6 +1,10 @@
 // services/portfolioService.js
 import Transaction from "../models/Transaction.js";
-import { getStockPrices, getCryptoPrices } from "./priceService.js";
+import {
+  getStockPrices,
+  getCryptoPrices,
+  getForexPrices,
+} from "./priceService.js";
 
 /**
  * Compute holdings from a list of transactions and latest prices.
@@ -23,6 +27,7 @@ function buildHoldings(transactions, latestPrices) {
       return new Date(aT) - new Date(bT);
     });
   }
+  console.log("🧩 Building holdings with prices:", latestPrices);
 
   const holdings = [];
 
@@ -97,8 +102,13 @@ export async function getHoldings(portfolioId) {
   if (!txs.length) return [];
 
   const stockSymbols = [
-    ...new Set(txs.filter((t) => t.assetType === "stock").map((t) => t.symbol)),
+    ...new Set(
+      txs
+        .filter((t) => t.assetType === "stock")
+        .map((t) => t.symbol.toUpperCase())
+    ),
   ];
+
   const cryptoSymbols = [
     ...new Set(
       txs
@@ -107,12 +117,33 @@ export async function getHoldings(portfolioId) {
     ),
   ];
 
-  const [stockPrices, cryptoPrices] = await Promise.all([
+  const forexSymbols = [
+    ...new Set(
+      txs
+        .filter((t) => t.assetType === "forex" || t.assetType === "commodity")
+        .map((t) => t.symbol.toUpperCase())
+    ),
+  ];
+  console.log(
+    "📊 Transactions:",
+    txs.map((t) => ({ type: t.assetType, sym: t.symbol }))
+  );
+  console.log("📊 Stock symbols:", stockSymbols);
+  console.log("📊 Crypto symbols:", cryptoSymbols);
+
+  const [stockPrices, cryptoPrices, forexPrices] = await Promise.all([
     stockSymbols.length ? getStockPrices(stockSymbols) : {},
     cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
+    forexSymbols.length ? getForexPrices(forexSymbols) : {},
   ]);
 
-  const latestPrices = { ...stockPrices, ...cryptoPrices };
+  console.log("📈 Stock prices:", stockPrices);
+  console.log("📈 Crypto prices:", cryptoPrices);
+  console.log("📈 Forex prices:", forexPrices);
+
+  const latestPrices = { ...stockPrices, ...cryptoPrices, ...forexPrices };
+  console.log("📈 Latest Prices Merged:", latestPrices);
+
   return buildHoldings(txs, latestPrices);
 }
 
@@ -121,22 +152,64 @@ export async function getGlobalHoldings() {
   const txs = await Transaction.find({});
   if (!txs.length) return [];
 
+  // --- Extract & normalize symbols ---
   const stockSymbols = [
-    ...new Set(txs.filter((t) => t.assetType === "stock").map((t) => t.symbol)),
+    ...new Set(
+      txs
+        .filter((t) => t.assetType === "stock")
+        .map((t) => t.symbol.toUpperCase().trim())
+    ),
   ];
+
   const cryptoSymbols = [
     ...new Set(
       txs
         .filter((t) => t.assetType === "crypto")
-        .map((t) => t.symbol.toUpperCase())
+        .map((t) => t.symbol.toUpperCase().trim())
     ),
   ];
 
-  const [stockPrices, cryptoPrices] = await Promise.all([
-    stockSymbols.length ? getStockPrices(stockSymbols) : {},
-    cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
-  ]);
+  // ✅ Validate / normalize forex & commodities
+  const normalizeForex = (s) =>
+    s.includes("/") ? s.replace(/\s+/g, "").toUpperCase() : s.toUpperCase();
 
-  const latestPrices = { ...stockPrices, ...cryptoPrices };
+  const forexSymbols = [
+    ...new Set(
+      txs
+        .filter((t) => t.assetType === "forex")
+        .map((t) => normalizeForex(t.symbol))
+    ),
+  ];
+
+  const commoditySymbols = [
+    ...new Set(
+      txs
+        .filter((t) => t.assetType === "commodity")
+        .map((t) => t.symbol.toUpperCase().trim())
+    ),
+  ];
+
+  // console.log("Fetching stockSymbols:", stockSymbols);
+  // console.log("Fetching cryptoSymbols:", cryptoSymbols);
+  // console.log("Fetching forexSymbols:", forexSymbols);
+  // console.log("Fetching commoditySymbols:", commoditySymbols);
+
+  // --- Fetch prices ---
+  const [stockPrices, cryptoPrices, forexPrices, commodityPrices] =
+    await Promise.all([
+      stockSymbols.length ? getStockPrices(stockSymbols) : {},
+      cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
+      forexSymbols.length ? getForexPrices(forexSymbols) : {},
+      commoditySymbols.length ? getCommodityPrices(commoditySymbols) : {},
+    ]);
+
+  // Merge them into one dictionary
+  const latestPrices = {
+    ...stockPrices,
+    ...cryptoPrices,
+    ...forexPrices,
+    ...commodityPrices,
+  };
+
   return buildHoldings(txs, latestPrices);
 }

@@ -1,6 +1,6 @@
 import Transaction from "../models/Transaction.js";
 import Portfolio from "../models/Portfolio.js";
-
+import mongoose from "mongoose";
 // ✅ Create a transaction
 export const createTransaction = async (req, res) => {
   try {
@@ -29,6 +29,11 @@ export const createTransaction = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(portfolioId)) {
+      return res.status(400).json({ error: "Invalid portfolioId" });
+    }
+
     // Optional: check portfolio exists
     const portfolio = await Portfolio.findById(portfolioId);
     if (!portfolio) {
@@ -36,7 +41,7 @@ export const createTransaction = async (req, res) => {
     }
 
     const tx = new Transaction({
-      portfolioId,
+      portfolioId: new mongoose.Types.ObjectId(portfolioId), // ✅ ensure correct type
       assetType,
       symbol,
       cgId,

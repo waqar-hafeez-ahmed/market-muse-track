@@ -95,6 +95,7 @@ export function AddTransactionForm({
               >
                 <option value="stock">Stock</option>
                 <option value="crypto">Crypto</option>
+                <option value="forex">Forex</option>
               </select>
             </div>
             <div>

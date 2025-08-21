@@ -17,7 +17,7 @@ const Index = () => {
   const { data: performance, loading } = usePortfolioSnapshots(
     "68a45b0f1ec49f52c1f0c81f"
   );
-  console.log(performance);
+  console.log(data);
 
   if (summary.isLoading) {
     return <div>Loading...</div>;

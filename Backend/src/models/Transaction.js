@@ -3,7 +3,10 @@ import mongoose from "mongoose";
 const transactionSchema = new mongoose.Schema(
   {
     portfolioId: { type: mongoose.Schema.Types.ObjectId, ref: "Portfolio" },
-    assetType: { type: String, enum: ["stock", "crypto"] },
+    assetType: {
+      type: String,
+      enum: ["stock", "crypto", "forex", "commodity"],
+    },
     symbol: String,
     cgId: String,
     action: {
