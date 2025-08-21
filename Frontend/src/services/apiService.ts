@@ -1,49 +1,71 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE_URL = "http://localhost:4000/api";
 
-// Helper function for API calls
+// Helper function
 const apiCall = async (endpoint: string, options?: RequestInit) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     ...options,
   });
 
   if (!response.ok) {
-    throw new Error(`API call failed: ${response.statusText}`);
+    let msg = `API call failed: ${response.status} ${response.statusText}`;
+    try {
+      const data = await response.json();
+      msg = data.error || msg;
+    } catch {
+      // Ignore JSON parsing errors
+    }
+    throw new Error(msg);
   }
 
   return response.json();
 };
 
-// Portfolio APIs
+// ---------------- Portfolio / Holdings ----------------
 export const portfolioAPI = {
-  // Get all portfolios
+  // All portfolios
   getPortfolios: () => apiCall("/portfolios"),
 
-  // Get portfolio holdings
+  // Holdings (new unified route you mounted)
   getPortfolioHoldings: (portfolioId: string) =>
-    apiCall(`/portfolios/${portfolioId}/holdings`),
+    apiCall(`/holdings?portfolioId=${encodeURIComponent(portfolioId)}`),
 
-  // Get portfolio summary
+  // Summary (reuse holdings.kpis or a summary endpoint if you keep one)
   getPortfolioSummary: (portfolioId: string) =>
-    apiCall(`/portfolios/${portfolioId}/summary`),
+    apiCall(`/holdings?portfolioId=${encodeURIComponent(portfolioId)}`),
 };
 
-// Transaction APIs
+// ---------------- Transactions ----------------
 export const transactionAPI = {
-  // Get all transactions
-  getTransactions: () => apiCall("/transactions"),
+  // List all transactions for a portfolio (optional filter by symbol)
+  getTransactions: (portfolioId: string, symbol?: string) =>
+    apiCall(
+      `/transactions?portfolioId=${encodeURIComponent(portfolioId)}${
+        symbol ? `&symbol=${encodeURIComponent(symbol)}` : ""
+      }`
+    ),
 
   // Create transaction
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createTransaction: (transaction: any) =>
     apiCall("/transactions", {
       method: "POST",
       body: JSON.stringify(transaction),
     }),
+
+  // Update
+  updateTransaction: (id: string, updates: any) =>
+    apiCall(`/transactions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    }),
+
+  // Delete
+  deleteTransaction: (id: string) =>
+    apiCall(`/transactions/${id}`, { method: "DELETE" }),
 };
 
+// ---------------- News ----------------
 export const newsAPI = {
   getMarketNews: () => apiCall("/news"),
   getStockNews: (symbol: string) => apiCall(`/news/${symbol}`),

@@ -1,57 +1,63 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useAddHolding } from "@/hooks/usePortfolio";
 import { toast } from "sonner";
 import { Plus, Loader2 } from "lucide-react";
+import { useAddHolding } from "@/hooks/usePortfolio";
 
-interface AddHoldingFormProps {
-  portfolioId?: string;
-  onSuccess?: () => void;
-}
-
-export const AddHoldingForm = ({
+export function AddTransactionForm({
   portfolioId = "68a45b0f1ec49f52c1f0c81f",
+  defaultAssetType = "stock",
   onSuccess,
-}: AddHoldingFormProps) => {
-  const [symbol, setSymbol] = useState("");
-  const [name, setName] = useState("");
-  const [shares, setShares] = useState("");
-  const [avgCost, setAvgCost] = useState("");
+}: {
+  portfolioId?: string;
+  defaultAssetType?: "stock" | "crypto";
+  onSuccess?: () => void;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [assetType, setAssetType] = useState<"stock" | "crypto">(
+    defaultAssetType
+  );
+  const [action, setAction] = useState<"BUY" | "SELL">("BUY");
+  const [symbol, setSymbol] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [price, setPrice] = useState("");
+  const [fee, setFee] = useState("0");
+  const [note, setNote] = useState("");
 
-  const addHolding = useAddHolding();
+  const addTx = useAddHolding();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!symbol || !name || !shares || !avgCost) {
-      toast.error("Please fill in all fields");
+    if (!symbol || !quantity || !price) {
+      toast.error("Symbol, Quantity and Price are required");
       return;
     }
 
     try {
-      await addHolding.mutateAsync({
+      await addTx.mutateAsync({
+        portfolioId,
+        assetType,
         symbol: symbol.toUpperCase(),
-        name,
-        shares: parseFloat(shares),
-        avg_cost: parseFloat(avgCost),
-        portfolio_id: portfolioId,
+        name: symbol.toUpperCase(), // ✅ make sure name is passed
+        action, // backend expects uppercase
+        shares: Number(quantity),
+        avgCost: Number(price),
       });
 
-      // Reset form
-      setSymbol("");
-      setName("");
-      setShares("");
-      setAvgCost("");
       setIsExpanded(false);
-
-      toast.success("Holding added successfully!");
+      setSymbol("");
+      setQuantity("");
+      setPrice("");
+      setFee("0");
+      setNote("");
+      toast.success(`${action} added`);
       onSuccess?.();
-    } catch (error) {
-      toast.error("Failed to add holding");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add transaction");
     }
   };
 
@@ -65,7 +71,7 @@ export const AddHoldingForm = ({
             variant="outline"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add New Holding
+            Add Transaction
           </Button>
         </CardContent>
       </Card>
@@ -75,63 +81,96 @@ export const AddHoldingForm = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add New Holding</CardTitle>
+        <CardTitle>Add Transaction</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="symbol">Stock Symbol</Label>
+              <Label>Asset Type</Label>
+              <select
+                className="w-full h-10 rounded-md border bg-background px-3"
+                value={assetType}
+                onChange={(e) => setAssetType(e.target.value as any)}
+              >
+                <option value="stock">Stock</option>
+                <option value="crypto">Crypto</option>
+              </select>
+            </div>
+            <div>
+              <Label>Action</Label>
+              <select
+                className="w-full h-10 rounded-md border bg-background px-3"
+                value={action}
+                onChange={(e) => setAction(e.target.value as any)}
+              >
+                <option value="BUY">Buy</option>
+                <option value="SELL">Sell</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="symbol">Symbol</Label>
               <Input
                 id="symbol"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
-                placeholder="AAPL"
+                placeholder="AAPL / BTC"
                 className="uppercase"
               />
             </div>
             <div>
-              <Label htmlFor="name">Company Name</Label>
+              <Label htmlFor="qty">Quantity</Label>
               <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Apple Inc."
+                id="qty"
+                type="number"
+                step="0.00000001"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="shares">Number of Shares</Label>
+              <Label htmlFor="price">Price</Label>
               <Input
-                id="shares"
+                id="price"
                 type="number"
-                step="0.001"
-                value={shares}
-                onChange={(e) => setShares(e.target.value)}
-                placeholder="100"
+                step="0.00000001"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="avgCost">Average Cost per Share</Label>
+              <Label htmlFor="fee">Fee (optional)</Label>
               <Input
-                id="avgCost"
+                id="fee"
                 type="number"
                 step="0.01"
-                value={avgCost}
-                onChange={(e) => setAvgCost(e.target.value)}
-                placeholder="150.00"
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
               />
             </div>
           </div>
 
+          <div>
+            <Label htmlFor="note">Note (optional)</Label>
+            <Input
+              id="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+
           <div className="flex gap-2">
-            <Button type="submit" disabled={addHolding.isPending}>
-              {addHolding.isPending && (
+            <Button type="submit" disabled={addTx.isPending}>
+              {addTx.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Add Holding
+              Save
             </Button>
             <Button
               type="button"
@@ -145,4 +184,4 @@ export const AddHoldingForm = ({
       </CardContent>
     </Card>
   );
-};
+}

@@ -3,7 +3,7 @@ import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { MarketNews } from "@/components/MarketNews";
 import { PortfolioChart } from "@/components/PortfolioChart";
-import { AddHoldingForm } from "@/components/AddHoldingForm";
+import { AddTransactionForm } from "@/components/AddHoldingForm";
 import {
   usePortfolioHoldings,
   usePortfolioSummary,
@@ -64,7 +64,7 @@ const Index = () => {
         />
 
         {/* Add New Holding Form */}
-        <AddHoldingForm />
+        <AddTransactionForm portfolioId="68a45b0f1ec49f52c1f0c81f" />
 
         {/* Chart and News Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

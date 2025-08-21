@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portfolioAPI, transactionAPI } from "@/services/apiService";
 
-// Types for MongoDB data structure
+// Types
 interface PortfolioData {
   portfolioId: string;
   holdings: Holding[];
@@ -31,22 +31,16 @@ interface KPIs {
 }
 
 interface InsertPortfolioHolding {
-  portfolioId?: string;
+  portfolioId: string;
   symbol: string;
+  action: "BUY" | "SELL";
   name: string;
   shares: number;
   avgCost: number;
+  assetType?: string; // stock | crypto
 }
 
-// interface UpdatePortfolioHolding {
-//   portfolioId?: string;
-//   symbol?: string;
-//   name?: string;
-//   shares?: number;
-//   avgCost?: number;
-// }
-
-// Function to get all holdings for a specific portfolio
+// ---------------- Fetch Holdings ----------------
 export const getPortfolioHoldings = async (
   portfolioId?: string
 ): Promise<PortfolioData> => {
@@ -56,101 +50,94 @@ export const getPortfolioHoldings = async (
   return portfolioAPI.getPortfolioHoldings(portfolioId);
 };
 
-// Function to add a new holding
+// ---------------- Add Holding (via transaction) ----------------
 export const addPortfolioHolding = async (
   holding: InsertPortfolioHolding
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> => {
-  const response = await fetch("http://localhost:4000/api/transactions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      portfolioId: holding.portfolioId,
-      assetType: "stock",
-      symbol: holding.symbol,
-      name: holding.name,
-      action: "buy",
-      quantity: holding.shares,
-      price: holding.avgCost,
-    }),
+  return transactionAPI.createTransaction({
+    portfolioId: holding.portfolioId,
+    assetType: holding.assetType ?? "stock",
+    symbol: holding.symbol,
+    name: holding.name,
+    action: "BUY", // backend expects uppercase
+    quantity: holding.shares,
+    price: holding.avgCost,
   });
-  return response.json();
 };
 
-// // Function to update a holding
-// export const updatePortfolioHolding = async (
-//   id: string,
-//   updates: UpdatePortfolioHolding
-// ): Promise<any> => {
-//   const response = await fetch(`http://localhost:4000/api/transactions/${id}`, {
-//     method: "PUT",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify(updates),
-//   });
-//   return response.json();
-// };
+// ---------------- Update Holding ----------------
+export const updatePortfolioHolding = async (
+  id: string,
+  updates: Partial<InsertPortfolioHolding>
+): Promise<any> => {
+  return transactionAPI.updateTransaction(id, updates);
+};
 
-// // Function to delete a holding
-// export const deletePortfolioHolding = async (id: string): Promise<boolean> => {
-//   const response = await fetch(`http://localhost:4000/api/transactions/${id}`, {
-//     method: "DELETE",
-//   });
-//   return response.ok;
-// };
+// ---------------- Delete Holding ----------------
+export const deletePortfolioHolding = async (id: string): Promise<boolean> => {
+  await transactionAPI.deleteTransaction(id);
+  return true;
+};
 
-// Hooks updated for MongoDB data structure
-export const usePortfolioHoldings = (portfolioId?: string) => {
-  return useQuery({
+// ---------------- React Query Hooks ----------------
+export const usePortfolioHoldings = (portfolioId?: string) =>
+  useQuery({
     queryKey: ["portfolio-holdings", portfolioId],
     queryFn: () => getPortfolioHoldings(portfolioId),
     enabled: !!portfolioId,
   });
-};
 
 export const useAddHolding = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: addPortfolioHolding,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["portfolio-holdings"] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-holdings", variables.portfolioId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-summary", variables.portfolioId],
+      });
     },
   });
 };
 
-// export const useUpdateHolding = () => {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: ({
-//       id,
-//       updates,
-//     }: {
-//       id: string;
-//       updates: UpdatePortfolioHolding;
-//     }) => updatePortfolioHolding(id, updates),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["portfolio-holdings"] });
-//     },
-//   });
-// };
+export const useUpdateHolding = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<InsertPortfolioHolding>;
+    }) => updatePortfolioHolding(id, updates),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-holdings", variables.updates.portfolioId],
+      });
+    },
+  });
+};
 
-// export const useDeleteHolding = () => {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: deletePortfolioHolding,
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["portfolio-holdings"] });
-//     },
-//   });
-// };
+export const useDeleteHolding = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deletePortfolioHolding,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-holdings", variables.portfolioId],
+      });
+    },
+  });
+};
 
-export const usePortfolioSummary = (portfolioId?: string) => {
-  return useQuery({
+export const usePortfolioSummary = (portfolioId?: string) =>
+  useQuery({
     queryKey: ["portfolio-summary", portfolioId],
     queryFn: async () => {
       const res = await portfolioAPI.getPortfolioSummary(portfolioId!);
-      // transform response to match frontend props
       return {
-        ...res,
         totalValue: res.kpis.totalValue,
         dayChange: res.kpis.todayChange,
         dayChangePercent: res.kpis.todayChangePercent,
@@ -160,4 +147,3 @@ export const usePortfolioSummary = (portfolioId?: string) => {
     },
     enabled: !!portfolioId,
   });
-};
