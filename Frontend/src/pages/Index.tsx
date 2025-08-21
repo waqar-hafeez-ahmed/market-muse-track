@@ -9,10 +9,15 @@ import {
   usePortfolioSummary,
 } from "@/hooks/usePortfolio";
 import { mockPortfolioData } from "@/data/mockData";
+import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
 
 const Index = () => {
   const { data, isLoading } = usePortfolioHoldings("68a45b0f1ec49f52c1f0c81f");
   const summary = usePortfolioSummary("68a45b0f1ec49f52c1f0c81f");
+  const { data: performance, loading } = usePortfolioSnapshots(
+    "68a45b0f1ec49f52c1f0c81f"
+  );
+  console.log(performance);
 
   if (summary.isLoading) {
     return <div>Loading...</div>;
@@ -42,7 +47,6 @@ const Index = () => {
         : 0, // ✅ compute if needed
     })) ?? [];
 
-  console.log(holdings);
   return (
     <div className="min-h-screen bg-background">
       {/* Main Content */}
@@ -68,10 +72,7 @@ const Index = () => {
 
         {/* Chart and News Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <PortfolioChart
-            data={mockPortfolioData.chartData}
-            timeRange="Last 6 Months"
-          />
+          <PortfolioChart data={performance} timeRange="Last 6 Months" />
           <MarketNews />
         </div>
 

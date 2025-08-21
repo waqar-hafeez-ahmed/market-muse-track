@@ -70,3 +70,10 @@ export const newsAPI = {
   getMarketNews: () => apiCall("/news"),
   getStockNews: (symbol: string) => apiCall(`/news/${symbol}`),
 };
+
+// ---------------- Snapshots ----------------
+export const snapshotAPI = {
+  // Get all snapshots for a portfolio
+  getSnapshots: (portfolioId: string) =>
+    apiCall(`/snapshots/${encodeURIComponent(portfolioId)}`),
+};
