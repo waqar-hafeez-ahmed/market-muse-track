@@ -28,7 +28,13 @@ app.use(
 );
 app.use(helmet());
 app.use(express.json());
-app.use(rateLimit({ windowMs: 60 * 1000, max: 100 }));
+app.use(
+  rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // limit each IP to 8 requests per minute
+    message: "Too many requests, please try again after a minute.", // optional custom message
+  })
+);
 
 // Routes
 app.get("/health", (req, res) => res.json({ ok: true }));

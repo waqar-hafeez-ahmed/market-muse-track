@@ -55,7 +55,7 @@ async function collectSymbolsByType() {
       (s) => bySymbol[s] === "crypto"
     );
 
-    console.log("✅ Extracted symbols:", { stocks, cryptos });
+    // console.log("✅ Extracted symbols:", { stocks, cryptos });
     return { stocks, cryptos };
   } catch (err) {
     console.error("❌ Error in collectSymbolsByType:", err.message);

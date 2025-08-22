@@ -9,21 +9,46 @@ import {
   usePortfolioSummary,
 } from "@/hooks/usePortfolio";
 import { mockPortfolioData } from "@/data/mockData";
+import { getPortfolioById } from "@/data/PortfolioList";
+import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
 
 const PortfolioDetail = () => {
   const { portfolioId } = useParams();
-  const id = parseInt(portfolioId || "1");
+  // const id = parseInt(portfolioId);
 
-  const { data: holdings = [], isLoading } = usePortfolioHoldings(id);
-  const summary = usePortfolioSummary(id);
+  const { data, isLoading } = usePortfolioHoldings(portfolioId);
+  const summary = usePortfolioSummary(portfolioId);
 
-  const portfolioNames = {
-    1: "Growth Portfolio",
-    2: "Conservative Portfolio",
-    3: "Tech Focus Portfolio",
-    4: "Dividend Portfolio",
-    5: "Speculative Portfolio",
-  } as const;
+  const portfolio = getPortfolioById(portfolioId);
+  const { data: performance, loading } = usePortfolioSnapshots(portfolioId);
+  if (summary.isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (summary.isError) {
+    return <div>Error loading summary</div>;
+  }
+
+  if (!summary.data) {
+    return <div>No data</div>;
+  }
+
+  const holdings =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data?.holdings?.map((h: any) => ({
+      symbol: h.symbol,
+      name: h.name,
+      shares: h.quantity,
+      currentPrice: h.currentPrice,
+      avgCost: h.avgCost,
+      marketValue: h.currentValue, // ✅ mapped correctly
+      gainLoss: h.totalPnL, // ✅ backend total PnL
+      gainLossPercent: h.totalPnLPct, // ✅ backend PnL %
+      dayChange: h.todaysChange, // ✅ backend today's change
+      dayChangePercent: h.previousClose
+        ? ((h.currentPrice - h.previousClose) / h.previousClose) * 100
+        : 0, // ✅ compute if needed
+    })) ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,29 +57,25 @@ const PortfolioDetail = () => {
         {/* Portfolio Header */}
         <div className="flex items-center space-x-3 mb-6">
           <h1 className="text-3xl font-bold text-foreground">
-            {portfolioNames[id as keyof typeof portfolioNames] ||
-              `Portfolio ${portfolioId}`}
+            {`Portfolio ${portfolio?.name || portfolioId}`}
           </h1>
         </div>
         {/* Portfolio Summary Cards */}
         <PortfolioSummary
-          totalValue={summary.totalValue}
-          dayChange={summary.dayChange}
-          dayChangePercent={summary.dayChangePercent}
-          totalGainLoss={summary.totalGainLoss}
-          totalGainLossPercent={summary.totalGainLossPercent}
+          totalValue={summary.data.totalValue}
+          dayChange={summary.data.dayChange}
+          dayChangePercent={summary.data.dayChangePercent}
+          totalGainLoss={summary.data.totalGainLoss}
+          totalGainLossPercent={summary.data.totalGainLossPercent}
         />
 
         {/* Add New Holding Form */}
-        <AddTransactionForm />
+        <AddTransactionForm portfolioId={portfolioId} />
 
         {/* Chart and News Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <PortfolioChart
-            data={mockPortfolioData.chartData}
-            timeRange="Last 6 Months"
-          />
-          <MarketNews news={mockPortfolioData.news} />
+          <PortfolioChart data={performance} timeRange="Last 6 Months" />
+          <MarketNews />
         </div>
 
         {/* Holdings Table */}

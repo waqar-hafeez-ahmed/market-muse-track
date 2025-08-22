@@ -124,12 +124,6 @@ export async function getHoldings(portfolioId) {
         .map((t) => t.symbol.toUpperCase())
     ),
   ];
-  console.log(
-    "📊 Transactions:",
-    txs.map((t) => ({ type: t.assetType, sym: t.symbol }))
-  );
-  console.log("📊 Stock symbols:", stockSymbols);
-  console.log("📊 Crypto symbols:", cryptoSymbols);
 
   const [stockPrices, cryptoPrices, forexPrices] = await Promise.all([
     stockSymbols.length ? getStockPrices(stockSymbols) : {},
@@ -137,12 +131,7 @@ export async function getHoldings(portfolioId) {
     forexSymbols.length ? getForexPrices(forexSymbols) : {},
   ]);
 
-  console.log("📈 Stock prices:", stockPrices);
-  console.log("📈 Crypto prices:", cryptoPrices);
-  console.log("📈 Forex prices:", forexPrices);
-
   const latestPrices = { ...stockPrices, ...cryptoPrices, ...forexPrices };
-  console.log("📈 Latest Prices Merged:", latestPrices);
 
   return buildHoldings(txs, latestPrices);
 }
@@ -188,11 +177,6 @@ export async function getGlobalHoldings() {
         .map((t) => t.symbol.toUpperCase().trim())
     ),
   ];
-
-  // console.log("Fetching stockSymbols:", stockSymbols);
-  // console.log("Fetching cryptoSymbols:", cryptoSymbols);
-  // console.log("Fetching forexSymbols:", forexSymbols);
-  // console.log("Fetching commoditySymbols:", commoditySymbols);
 
   // --- Fetch prices ---
   const [stockPrices, cryptoPrices, forexPrices, commodityPrices] =
