@@ -5,8 +5,10 @@ import { MarketNews } from "@/components/MarketNews";
 import { PortfolioChart } from "@/components/PortfolioChart";
 import { AddTransactionForm } from "@/components/AddHoldingForm";
 import {
+  useDeleteHolding,
   usePortfolioHoldings,
   usePortfolioSummary,
+  useUpdateHolding,
 } from "@/hooks/usePortfolio";
 import { mockPortfolioData } from "@/data/mockData";
 import { getPortfolioById } from "@/data/PortfolioList";
@@ -21,21 +23,12 @@ const PortfolioDetail = () => {
 
   const portfolio = getPortfolioById(portfolioId);
   const { data: performance, loading } = usePortfolioSnapshots(portfolioId);
-  if (summary.isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (summary.isError) {
-    return <div>Error loading summary</div>;
-  }
-
-  if (!summary.data) {
-    return <div>No data</div>;
-  }
 
   const holdings =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data?.holdings?.map((h: any) => ({
+      id: h.transactionIds?.[0] || h._id, // ✅ pick the first transaction ID
+      holdingId: h._id,
       symbol: h.symbol,
       name: h.name,
       shares: h.quantity,
@@ -49,6 +42,47 @@ const PortfolioDetail = () => {
         ? ((h.currentPrice - h.previousClose) / h.previousClose) * 100
         : 0, // ✅ compute if needed
     })) ?? [];
+
+  const deleteHoldingMutation = useDeleteHolding(
+    holdings.find((h) => true)?.holdingId || ""
+  );
+  const updateHoldingMutation = useUpdateHolding(
+    holdings.find((h) => true)?.holdingId || ""
+  );
+
+  const handleDeleteTransaction = async (id: string) => {
+    await deleteHoldingMutation.mutateAsync(id);
+  };
+
+  const handleEditTransaction = async (id: string) => {
+    console.log(id);
+
+    // Ask for price
+    const priceStr = window.prompt("Enter new price:");
+    if (!priceStr) return;
+    const price = Number(priceStr);
+    if (Number.isNaN(price)) return;
+
+    // Ask for quantity
+    const qtyStr = window.prompt("Enter new quantity:");
+    if (!qtyStr) return;
+    const quantity = Number(qtyStr);
+    if (Number.isNaN(quantity)) return;
+
+    // Send both to backend
+    await updateHoldingMutation.mutateAsync({
+      id,
+      updates: { price: price, quantity: quantity },
+    });
+  };
+
+  if (summary.isError) {
+    return <div>Error loading summary</div>;
+  }
+
+  if (!summary.data) {
+    return <div>No data</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,7 +116,11 @@ const PortfolioDetail = () => {
         {isLoading ? (
           <div className="text-center py-8">Loading your portfolio...</div>
         ) : (
-          <HoldingsTable holdings={holdings} />
+          <HoldingsTable
+            holdings={holdings}
+            onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
+          />
         )}
       </main>
     </div>

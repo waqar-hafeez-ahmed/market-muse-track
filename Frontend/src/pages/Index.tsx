@@ -7,32 +7,21 @@ import { AddTransactionForm } from "@/components/AddHoldingForm";
 import {
   usePortfolioHoldings,
   usePortfolioSummary,
+  useDeleteHolding,
+  useUpdateHolding,
 } from "@/hooks/usePortfolio";
-import { mockPortfolioData } from "@/data/mockData";
 import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
 
 const Index = () => {
-  const { data, isLoading } = usePortfolioHoldings("68a45b0f1ec49f52c1f0c81f");
-  const summary = usePortfolioSummary("68a45b0f1ec49f52c1f0c81f");
-  const { data: performance, loading } = usePortfolioSnapshots(
-    "68a45b0f1ec49f52c1f0c81f"
-  );
-  console.log(data);
-
-  if (summary.isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (summary.isError) {
-    return <div>Error loading summary</div>;
-  }
-
-  if (!summary.data) {
-    return <div>No data</div>;
-  }
+  const portfolioId = "68a45b0f1ec49f52c1f0c81f";
+  const { data, isLoading } = usePortfolioHoldings(portfolioId);
+  const summary = usePortfolioSummary(portfolioId);
+  const { data: performance, loading } = usePortfolioSnapshots(portfolioId);
 
   const holdings =
     data?.holdings?.map((h: any) => ({
+      id: h.transactionIds?.[0] || h._id, // ✅ pick the first transaction ID
+      holdingId: h._id,
       symbol: h.symbol,
       name: h.name,
       shares: h.quantity,
@@ -46,6 +35,50 @@ const Index = () => {
         ? ((h.currentPrice - h.previousClose) / h.previousClose) * 100
         : 0, // ✅ compute if needed
     })) ?? [];
+
+  const deleteHoldingMutation = useDeleteHolding(
+    holdings.find((h) => true)?.holdingId || ""
+  );
+  const updateHoldingMutation = useUpdateHolding(
+    holdings.find((h) => true)?.holdingId || ""
+  );
+
+  const handleDeleteTransaction = async (id: string) => {
+    await deleteHoldingMutation.mutateAsync(id);
+  };
+
+  const handleEditTransaction = async (id: string) => {
+    console.log(id);
+
+    // Ask for price
+    const priceStr = window.prompt("Enter new price:");
+    if (!priceStr) return;
+    const price = Number(priceStr);
+    if (Number.isNaN(price)) return;
+
+    // Ask for quantity
+    const qtyStr = window.prompt("Enter new quantity:");
+    if (!qtyStr) return;
+    const quantity = Number(qtyStr);
+    if (Number.isNaN(quantity)) return;
+
+    // Send both to backend
+    await updateHoldingMutation.mutateAsync({
+      id,
+      updates: { price: price, quantity: quantity },
+    });
+  };
+  if (summary.isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (summary.isError) {
+    return <div>Error loading summary</div>;
+  }
+
+  if (!summary.data) {
+    return <div>No data</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +113,11 @@ const Index = () => {
         {isLoading ? (
           <div className="text-center py-8">Loading your portfolio...</div>
         ) : (
-          <HoldingsTable holdings={holdings} />
+          <HoldingsTable
+            holdings={holdings}
+            onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
+          />
         )}
       </main>
     </div>

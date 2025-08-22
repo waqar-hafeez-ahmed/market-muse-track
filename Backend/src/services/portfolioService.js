@@ -27,7 +27,6 @@ function buildHoldings(transactions, latestPrices) {
       return new Date(aT) - new Date(bT);
     });
   }
-  console.log("🧩 Building holdings with prices:", latestPrices);
 
   const holdings = [];
 
@@ -75,8 +74,10 @@ function buildHoldings(transactions, latestPrices) {
       // crypto path
       todaysChangeAbs = (Number(p.change24h) / 100) * currentValue;
     }
-
+    const txIds = txs.map((t) => t._id);
     holdings.push({
+      id: txIds[0], // ✅ use first transaction ID
+      transactionIds: txIds,
       symbol: sym,
       name: p.name || sym,
       type: p.type, // "equity" | "crypto"

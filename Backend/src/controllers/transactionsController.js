@@ -69,3 +69,52 @@ export const getTransactions = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ✅ Update transaction
+export const updateTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid transaction id" });
+    }
+
+    // Find and update
+    const updatedTx = await Transaction.findByIdAndUpdate(
+      id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedTx) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    res.json(updatedTx);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ Delete transaction
+export const deleteTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid transaction id" });
+    }
+
+    const deletedTx = await Transaction.findByIdAndDelete(id);
+
+    if (!deletedTx) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    res.json({ message: "Transaction deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

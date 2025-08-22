@@ -1,8 +1,16 @@
 import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface Holding {
+  id: string; // ✅ add this
   symbol: string;
   name: string;
   shares: number;
@@ -17,11 +25,19 @@ interface Holding {
 
 interface HoldingsTableProps {
   holdings: Holding[];
+  onEdit?: (id: string) => void; // ✅ simplify signature
+  onDelete?: (id: string) => void; // ✅ simplify signature
 }
 
-export const HoldingsTable = ({ holdings }: HoldingsTableProps) => {
+export const HoldingsTable = ({
+  holdings,
+  onEdit,
+  onDelete,
+}: HoldingsTableProps) => {
   // Sort holdings by market value from highest to lowest
-  const sortedHoldings = [...holdings].sort((a, b) => b.marketValue - a.marketValue);
+  const sortedHoldings = [...holdings].sort(
+    (a, b) => b.marketValue - a.marketValue
+  );
   return (
     <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
       <h2 className="text-xl font-semibold mb-4 text-foreground">Holdings</h2>
@@ -29,15 +45,28 @@ export const HoldingsTable = ({ holdings }: HoldingsTableProps) => {
         <Table>
           <TableHeader>
             <TableRow className="border-border">
-              <TableHead className="text-muted-foreground">Investment</TableHead>
+              <TableHead className="text-muted-foreground">
+                Investment
+              </TableHead>
               <TableHead className="text-muted-foreground">Ticker</TableHead>
-              <TableHead className="text-muted-foreground">Current Price</TableHead>
-              <TableHead className="text-muted-foreground">Current Value</TableHead>
-              <TableHead className="text-muted-foreground">Total gain/loss ($)</TableHead>
-              <TableHead className="text-muted-foreground">Total gain/loss (%)</TableHead>
+              <TableHead className="text-muted-foreground">
+                Current Price
+              </TableHead>
+              <TableHead className="text-muted-foreground">
+                Current Value
+              </TableHead>
+              <TableHead className="text-muted-foreground">
+                Total gain/loss ($)
+              </TableHead>
+              <TableHead className="text-muted-foreground">
+                Total gain/loss (%)
+              </TableHead>
               <TableHead className="text-muted-foreground">Quantity</TableHead>
               <TableHead className="text-muted-foreground">Cost</TableHead>
-              <TableHead className="text-muted-foreground">Average Cost/Price</TableHead>
+              <TableHead className="text-muted-foreground">
+                Average Cost/Price
+              </TableHead>
+              <TableHead className="text-muted-foreground">Actions</TableHead>{" "}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -46,20 +75,60 @@ export const HoldingsTable = ({ holdings }: HoldingsTableProps) => {
               const totalCost = holding.shares * holding.avgCost;
 
               return (
-                <TableRow key={holding.symbol} className="border-border hover:bg-muted/50">
-                  <TableCell className="font-medium text-foreground">{holding.name}</TableCell>
-                  <TableCell className="text-foreground">{holding.symbol}</TableCell>
-                  <TableCell className="text-foreground">${holding.currentPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-foreground">${holding.marketValue.toLocaleString()}</TableCell>
-                  <TableCell className={`${isTotalPositive ? 'text-profit' : 'text-loss'} font-semibold`}>
-                    {isTotalPositive ? '+' : ''}${holding.gainLoss.toFixed(2)}
+                <TableRow
+                  key={holding.symbol}
+                  className="border-border hover:bg-muted/50"
+                >
+                  <TableCell className="font-medium text-foreground">
+                    {holding.name}
                   </TableCell>
-                  <TableCell className={`${isTotalPositive ? 'text-profit' : 'text-loss'} font-semibold`}>
-                    {isTotalPositive ? '+' : ''}{holding.gainLossPercent.toFixed(2)}%
+                  <TableCell className="text-foreground">
+                    {holding.symbol}
                   </TableCell>
-                  <TableCell className="text-foreground">{holding.shares}</TableCell>
-                  <TableCell className="text-foreground">${totalCost.toFixed(2)}</TableCell>
-                  <TableCell className="text-foreground">${holding.avgCost.toFixed(2)}</TableCell>
+                  <TableCell className="text-foreground">
+                    ${holding.currentPrice.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    ${holding.marketValue.toLocaleString()}
+                  </TableCell>
+                  <TableCell
+                    className={`${
+                      isTotalPositive ? "text-profit" : "text-loss"
+                    } font-semibold`}
+                  >
+                    {isTotalPositive ? "+" : ""}${holding.gainLoss.toFixed(2)}
+                  </TableCell>
+                  <TableCell
+                    className={`${
+                      isTotalPositive ? "text-profit" : "text-loss"
+                    } font-semibold`}
+                  >
+                    {isTotalPositive ? "+" : ""}
+                    {holding.gainLossPercent.toFixed(2)}%
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    {holding.shares}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    ${totalCost.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    ${holding.avgCost.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <button
+                      onClick={() => onEdit?.(holding.id)}
+                      className="text-blue-500 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete?.(holding.id)}
+                      className="text-red-500 hover:underline ml-3"
+                    >
+                      Delete
+                    </button>
+                  </TableCell>
                 </TableRow>
               );
             })}

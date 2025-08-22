@@ -53,6 +53,7 @@ export const getPortfolioHoldings = async (
 // ---------------- Add Holding (via transaction) ----------------
 export const addPortfolioHolding = async (
   holding: InsertPortfolioHolding
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> => {
   return transactionAPI.createTransaction({
     portfolioId: holding.portfolioId,
@@ -69,6 +70,7 @@ export const addPortfolioHolding = async (
 export const updatePortfolioHolding = async (
   id: string,
   updates: Partial<InsertPortfolioHolding>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> => {
   return transactionAPI.updateTransaction(id, updates);
 };
@@ -102,31 +104,94 @@ export const useAddHolding = () => {
   });
 };
 
-export const useUpdateHolding = () => {
+export const useDeleteHolding = (portfolioId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<InsertPortfolioHolding>;
-    }) => updatePortfolioHolding(id, updates),
-    onSuccess: (_data, variables) => {
+    mutationFn: (id: string) => deletePortfolioHolding(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({
+        queryKey: ["portfolio-holdings", portfolioId],
+      });
+
+      const prev = queryClient.getQueryData<PortfolioData>([
+        "portfolio-holdings",
+        portfolioId,
+      ]);
+
+      if (prev) {
+        queryClient.setQueryData<PortfolioData>(
+          ["portfolio-holdings", portfolioId],
+          {
+            ...prev,
+            holdings: prev.holdings.filter((h) => h._id !== id),
+          }
+        );
+      }
+
+      return { prev };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(
+          ["portfolio-holdings", portfolioId],
+          context.prev
+        );
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["portfolio-holdings", variables.updates.portfolioId],
+        queryKey: ["portfolio-holdings", portfolioId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-summary", portfolioId],
       });
     },
   });
 };
 
-export const useDeleteHolding = () => {
+export const useUpdateHolding = (portfolioId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deletePortfolioHolding,
-    onSuccess: (_data, variables) => {
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<Holding> }) =>
+      updatePortfolioHolding(id, updates),
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({
+        queryKey: ["portfolio-holdings", portfolioId],
+      });
+
+      const prev = queryClient.getQueryData<PortfolioData>([
+        "portfolio-holdings",
+        portfolioId,
+      ]);
+
+      if (prev) {
+        queryClient.setQueryData<PortfolioData>(
+          ["portfolio-holdings", portfolioId],
+          {
+            ...prev,
+            holdings: prev.holdings.map((h) =>
+              h._id === id ? { ...h, ...updates } : h
+            ),
+          }
+        );
+      }
+
+      return { prev };
+    },
+    onError: (_err, _data, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(
+          ["portfolio-holdings", portfolioId],
+          context.prev
+        );
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["portfolio-holdings", variables.portfolioId],
+        queryKey: ["portfolio-holdings", portfolioId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["portfolio-summary", portfolioId],
       });
     },
   });
