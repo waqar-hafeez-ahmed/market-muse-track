@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown , SquarePen , Trash2 } from "lucide-react";
 
 interface Holding {
   id: string; // ✅ add this
@@ -115,18 +115,18 @@ export const HoldingsTable = ({
                   <TableCell className="text-foreground">
                     ${holding.avgCost.toFixed(2)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap flex">
                     <button
                       onClick={() => onEdit?.(holding.id)}
-                      className="text-blue-500 hover:underline"
+                      className="text-green-500 hover:underline flex justify-center items-center"
                     >
-                      Edit
+                      <SquarePen size={18} />
                     </button>
                     <button
                       onClick={() => onDelete?.(holding.id)}
                       className="text-red-500 hover:underline ml-3"
                     >
-                      Delete
+                      <Trash2 size={18} />
                     </button>
                   </TableCell>
                 </TableRow>
