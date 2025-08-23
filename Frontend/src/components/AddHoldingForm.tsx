@@ -178,7 +178,7 @@ export function AddTransactionForm({
             </div>
           </div>
 
-          <div>
+          <div className="hidden">
             <Label htmlFor="note">Note (optional)</Label>
             <Input
               id="note"
