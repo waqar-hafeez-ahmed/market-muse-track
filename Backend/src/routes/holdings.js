@@ -43,7 +43,11 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ /api/holdings error:", err);
-    res.status(500).json({ error: "Failed to compute holdings" });
+    res.status(500).json({
+      error: "Failed to compute holdings",
+      message: err.message,
+      code: "HOLDINGS_FETCH_ERROR",
+    });
   }
 });
 

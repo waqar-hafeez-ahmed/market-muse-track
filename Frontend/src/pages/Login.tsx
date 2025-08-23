@@ -17,6 +17,7 @@ const Login = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
+
     if (username === "AdminMeta" && password === "admin#123") {
       localStorage.setItem("isAuth", "true"); // persist login
       navigate("/home");

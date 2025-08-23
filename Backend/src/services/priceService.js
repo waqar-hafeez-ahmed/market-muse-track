@@ -1,13 +1,12 @@
+// services/priceService.js
 import axios from "axios";
 import dotenv from "dotenv";
+import PriceCache from "../models/PriceCache.js";
 dotenv.config();
 
 const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
-
-let priceCache = {};
-let cacheTimestamp = 0;
 
 const cryptoSymbolToId = {
   BTC: "bitcoin",
@@ -22,81 +21,66 @@ const cryptoSymbolToId = {
 };
 
 // --- helpers ---
-const SYMBOL_ALIASES = {
-  OIL: "WTI/USD", // crude oil
-  USOIL: "WTI/USD",
-  UKOIL: "BRENT/USD",
-  GOLD: "XAU/USD",
-  SILVER: "XAG/USD",
-  PLATINUM: "XPT/USD",
-  Google: "GOOGL",
-};
-
 function normalizeSymbol(sym) {
   if (!sym) return sym;
   let s = sym.trim().toUpperCase();
-  if (SYMBOL_ALIASES[s]) return SYMBOL_ALIASES[s];
-  return s.replace(/^GPB\//, "GBP/"); // fix typo
+  if (s === "APPL") return "AAPL"; // common typo
+  return s.replace(/^GPB\//, "GBP/");
 }
 
 function inferType(sym) {
   const s = normalizeSymbol(sym);
-  if (s.includes("/")) return "forex"; // includes FX + metals
-  return "equity";
+  if (s.includes("/")) return "forex"; // FX + metals
+  return "stock";
 }
 
 // --- CRYPTO ---
 export async function getCryptoPrices(symbols) {
-  const now = Date.now();
-  const upperSymbols = symbols.map((s) => s.toUpperCase());
+  if (!symbols.length) return {};
 
-  if (priceCache.crypto && now - cacheTimestamp < 90 * 1000) {
-    return priceCache.crypto;
-  }
-
-  const ids = upperSymbols
-    .map((sym) => cryptoSymbolToId[sym] || null)
+  const ids = symbols
+    .map((sym) => cryptoSymbolToId[sym.toUpperCase()] || null)
     .filter(Boolean);
 
   if (!ids.length) return {};
 
-  const { data } = await axios.get(`${COINGECKO_BASE_URL}/simple/price`, {
-    params: {
-      ids: ids.join(","),
-      vs_currencies: "usd",
-      include_24hr_change: "true",
-    },
-  });
+  try {
+    const { data } = await axios.get(`${COINGECKO_BASE_URL}/simple/price`, {
+      params: {
+        ids: ids.join(","),
+        vs_currencies: "usd",
+        include_24hr_change: "true",
+      },
+    });
 
-  const result = {};
-  for (const sym of upperSymbols) {
-    const id = cryptoSymbolToId[sym];
-    if (id && data[id]) {
-      result[sym] = {
-        symbol: sym,
-        type: "crypto",
-        name: sym,
-        price: parseFloat(data[id].usd),
-        previousClose: parseFloat(
-          data[id].usd / (1 + data[id].usd_24h_change / 100)
-        ), // approx
-        change24h: parseFloat(data[id].usd_24h_change),
-        currency: "USD",
-      };
+    const result = {};
+    for (const sym of symbols) {
+      const id = cryptoSymbolToId[sym.toUpperCase()];
+      if (id && data[id]) {
+        result[sym] = {
+          symbol: sym,
+          type: "crypto",
+          price: parseFloat(data[id].usd),
+          previousClose: parseFloat(
+            data[id].usd / (1 + data[id].usd_24h_change / 100)
+          ),
+          change24h: parseFloat(data[id].usd_24h_change),
+          currency: "USD",
+        };
+      }
     }
+    return result;
+  } catch (err) {
+    console.error("❌ Error fetching crypto prices:", err.message);
+    return {};
   }
-
-  priceCache.crypto = result;
-  cacheTimestamp = now;
-  return result;
 }
 
-// --- STOCKS + FOREX/COMMODITIES ---
+// --- STOCKS/FOREX ---
 export async function getStockPrices(symbols) {
   if (!symbols.length) return {};
 
-  const apiKey = TWELVE_DATA_API_KEY;
-  if (!apiKey) {
+  if (!TWELVE_DATA_API_KEY) {
     console.error("❌ Missing Twelve Data API key!");
     return {};
   }
@@ -104,10 +88,8 @@ export async function getStockPrices(symbols) {
   try {
     const normSymbols = symbols.map(normalizeSymbol);
     const joined = normSymbols.join(",");
-    const url = `${TWELVE_DATA_BASE_URL}/quote?symbol=${joined}&apikey=${apiKey}`;
+    const url = `${TWELVE_DATA_BASE_URL}/quote?symbol=${joined}&apikey=${TWELVE_DATA_API_KEY}`;
     const { data } = await axios.get(url);
-
-    // console.log("🔍 TwelveData raw response:", JSON.stringify(data, null, 2));
 
     const result = {};
     if (normSymbols.length === 1) {
@@ -117,13 +99,10 @@ export async function getStockPrices(symbols) {
         result[sym] = {
           symbol: sym,
           type: inferType(sym),
-          name: stockData.name || sym,
           price: parseFloat(stockData.close),
           previousClose: parseFloat(stockData.previous_close) || null,
           currency: stockData.currency || "USD",
         };
-      } else {
-        console.error(`⚠️ No valid data for ${sym}:`, stockData);
       }
     } else {
       for (const sym of normSymbols) {
@@ -132,98 +111,74 @@ export async function getStockPrices(symbols) {
           result[sym] = {
             symbol: sym,
             type: inferType(sym),
-            name: stockData.name || sym,
             price: parseFloat(stockData.close),
             previousClose: parseFloat(stockData.previous_close) || null,
             currency: stockData.currency || "USD",
           };
-        } else {
-          console.error(`⚠️ No valid data for ${sym}:`, stockData);
         }
       }
     }
-
     return result;
   } catch (err) {
-    console.error(
-      "❌ Error fetching stock/forex prices:",
-      err.response?.data || err.message
-    );
+    console.error("❌ Error fetching stock/forex prices:", err.message);
     return {};
   }
 }
 
-export async function getForexPrices(symbols) {
-  if (!symbols.length) return {};
-
-  const apiKey = process.env.TWELVE_DATA_API_KEY;
-  if (!apiKey) {
-    console.error("❌ Missing Twelve Data API key!");
-    return {};
-  }
-
-  try {
-    const joined = symbols.join(",");
-    const url = `${TWELVE_DATA_BASE_URL}/quote?symbol=${joined}&apikey=${apiKey}`;
-    const { data } = await axios.get(url);
-
-    const result = {};
-    if (symbols.length === 1) {
-      const fxData = data;
-      result[symbols[0]] = {
-        symbol: symbols[0],
-        type: "forex",
-        name: fxData.name || symbols[0],
-        price: parseFloat(fxData.close || fxData.price) || null,
-        previousClose: parseFloat(fxData.previous_close) || null,
-        currency: fxData.currency || "USD",
-      };
-    } else {
-      for (const sym of symbols) {
-        const fxData = data[sym] || {};
-        result[sym] = {
-          symbol: sym,
-          type: "forex",
-          name: fxData.name || sym,
-          price: parseFloat(fxData.close || fxData.price) || null,
-          previousClose: parseFloat(fxData.previous_close) || null,
-          currency: fxData.currency || "USD",
-        };
-      }
-    }
-
-    return result;
-  } catch (err) {
-    console.error("❌ Error fetching forex prices:", err.message);
-    return {};
-  }
-}
-
-// --- Unified latest prices ---
 // --- Unified latest prices ---
 export async function getLatestPrices(symbols, type = "auto") {
   if (!symbols || !symbols.length) return {};
 
-  // If caller already knows type, shortcut
-  if (type === "crypto") {
-    return await getCryptoPrices(symbols);
-  }
-  if (type === "stock" || type === "forex") {
-    return await getStockPrices(symbols);
-  }
-
-  // "auto" mode: split by lookup table
-  const stockSymbols = symbols.filter(
-    (s) => !cryptoSymbolToId[s.toUpperCase()]
-  );
-  const cryptoSymbols = symbols.filter(
-    (s) => cryptoSymbolToId[s.toUpperCase()]
+  // Check cache first
+  const cachedPrices = await PriceCache.find({ symbol: { $in: symbols } });
+  const cachedPriceMap = new Map(
+    cachedPrices.map((price) => [price.symbol, price])
   );
 
-  const [stocks, cryptos] = await Promise.all([
-    stockSymbols.length ? getStockPrices(stockSymbols) : {},
-    cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
-  ]);
+  const results = {};
+  for (const sym of symbols) {
+    if (cachedPriceMap.has(sym)) {
+      results[sym] = cachedPriceMap.get(sym);
+    }
+  }
 
-  return { ...stocks, ...cryptos };
+  // Determine which symbols need fresh data
+  const symbolsNeedingUpdate = symbols.filter((sym) => !results[sym]);
+
+  if (symbolsNeedingUpdate.length > 0) {
+    let freshData = {};
+
+    if (type === "crypto") {
+      freshData = await getCryptoPrices(symbolsNeedingUpdate);
+    } else if (type === "stock" || type === "forex") {
+      freshData = await getStockPrices(symbolsNeedingUpdate);
+    } else {
+      const stockSymbols = symbolsNeedingUpdate.filter(
+        (sym) => !cryptoSymbolToId[sym.toUpperCase()]
+      );
+      const cryptoSymbols = symbolsNeedingUpdate.filter(
+        (sym) => cryptoSymbolToId[sym.toUpperCase()]
+      );
+      const [stocks, cryptos] = await Promise.all([
+        stockSymbols.length ? getStockPrices(stockSymbols) : {},
+        cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
+      ]);
+      freshData = { ...stocks, ...cryptos };
+    }
+
+    // Cache the new prices
+    for (const sym of Object.keys(freshData)) {
+      const priceData = freshData[sym];
+      if (priceData && priceData.price) {
+        await PriceCache.updateOne(
+          { symbol: sym },
+          { $set: { price: priceData.price, lastUpdated: new Date() } },
+          { upsert: true }
+        );
+        results[sym] = freshData[sym];
+      }
+    }
+  }
+
+  return results;
 }

@@ -66,7 +66,7 @@ export const HoldingsTable = ({
               <TableHead className="text-muted-foreground">
                 Average Cost/Price
               </TableHead>
-              <TableHead className="text-muted-foreground">Actions</TableHead>{" "}
+              <TableHead className="text-muted-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

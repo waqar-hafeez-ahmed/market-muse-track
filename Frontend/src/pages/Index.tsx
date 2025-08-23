@@ -9,17 +9,47 @@ import {
   usePortfolioSummary,
   useDeleteHolding,
   useUpdateHolding,
+  useGlobalHoldings,
 } from "@/hooks/usePortfolio";
 import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
 
 const Index = () => {
-  const portfolioId = "68a45b0f1ec49f52c1f0c81f";
-  const { data, isLoading } = usePortfolioHoldings(portfolioId);
-  const summary = usePortfolioSummary(portfolioId);
-  const { data: performance, loading } = usePortfolioSnapshots(portfolioId);
+  const { data: globalHoldings, isLoading } = useGlobalHoldings();
+  // For now, we'll use the global holdings data for summary
+  // In a real implementation, you might want a separate global summary endpoint
+  const summary = {
+    data: globalHoldings?.kpis
+      ? {
+          totalValue: globalHoldings.kpis.totalValue,
+          dayChange: globalHoldings.kpis.todayChange,
+          dayChangePercent: globalHoldings.kpis.todayChangePercent,
+          totalGainLoss: globalHoldings.kpis.totalPnL,
+          totalGainLossPercent: globalHoldings.kpis.totalPnLPct,
+        }
+      : null,
+    isLoading,
+    isError: false,
+  };
+
+  // For global performance, we can use the global holdings data
+  // This is a simplified approach - in a real app you might want a dedicated global performance endpoint
+  const performance = globalHoldings
+    ? {
+        labels: ["Total Value"],
+        datasets: [
+          {
+            label: "Portfolio Value",
+            data: [globalHoldings.kpis?.totalValue || 0],
+            backgroundColor: "rgba(34, 197, 94, 0.2)",
+            borderColor: "rgba(34, 197, 94, 1)",
+            borderWidth: 1,
+          },
+        ],
+      }
+    : null;
 
   const holdings =
-    data?.holdings?.map((h: any) => ({
+    globalHoldings?.holdings?.map((h: any) => ({
       id: h.transactionIds?.[0] || h._id, // ✅ pick the first transaction ID
       holdingId: h._id,
       symbol: h.symbol,
@@ -101,7 +131,7 @@ const Index = () => {
         />
 
         {/* Add New Holding Form */}
-        <AddTransactionForm portfolioId="68a45b0f1ec49f52c1f0c81f" />
+        {/* <AddTransactionForm portfolioId="68a45b0f1ec49f52c1f0c81f" /> */}
 
         {/* Chart and News Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -50,6 +50,11 @@ export const getPortfolioHoldings = async (
   return portfolioAPI.getPortfolioHoldings(portfolioId);
 };
 
+// ---------------- Fetch Global Holdings ----------------
+export const getGlobalHoldings = async (): Promise<PortfolioData> => {
+  return portfolioAPI.getGlobalHoldings();
+};
+
 // ---------------- Add Holding (via transaction) ----------------
 export const addPortfolioHolding = async (
   holding: InsertPortfolioHolding
@@ -87,6 +92,12 @@ export const usePortfolioHoldings = (portfolioId?: string) =>
     queryKey: ["portfolio-holdings", portfolioId],
     queryFn: () => getPortfolioHoldings(portfolioId),
     enabled: !!portfolioId,
+  });
+
+export const useGlobalHoldings = () =>
+  useQuery({
+    queryKey: ["global-holdings"],
+    queryFn: getGlobalHoldings,
   });
 
 export const useAddHolding = () => {

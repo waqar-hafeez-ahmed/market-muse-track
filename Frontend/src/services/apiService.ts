@@ -3,23 +3,36 @@ const API_BASE_URL = "http://localhost:4000/api";
 
 // Helper function
 const apiCall = async (endpoint: string, options?: RequestInit) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
 
-  if (!response.ok) {
-    let msg = `API call failed: ${response.status} ${response.statusText}`;
-    try {
-      const data = await response.json();
-      msg = data.error || msg;
-    } catch {
-      // Ignore JSON parsing errors
+    if (!response.ok) {
+      let errorMessage = `API call failed: ${response.status} ${response.statusText}`;
+      let errorCode = "API_ERROR";
+
+      try {
+        const data = await response.json();
+        errorMessage = data.message || data.error || errorMessage;
+        errorCode = data.code || errorCode;
+      } catch {
+        // Ignore JSON parsing errors
+      }
+
+      const error = new Error(errorMessage);
+      (error as any).code = errorCode;
+      throw error;
     }
-    throw new Error(msg);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Network error occurred");
+  }
 };
 
 // ---------------- Portfolio / Holdings ----------------
@@ -31,9 +44,15 @@ export const portfolioAPI = {
   getPortfolioHoldings: (portfolioId: string) =>
     apiCall(`/holdings?portfolioId=${encodeURIComponent(portfolioId)}`),
 
+  // Global holdings (all portfolios)
+  getGlobalHoldings: () => apiCall(`/holdings`),
+
   // Summary (reuse holdings.kpis or a summary endpoint if you keep one)
   getPortfolioSummary: (portfolioId: string) =>
     apiCall(`/holdings?portfolioId=${encodeURIComponent(portfolioId)}`),
+
+  // Global summary (all portfolios)
+  getGlobalSummary: () => apiCall(`/holdings`),
 };
 
 // ---------------- Transactions ----------------

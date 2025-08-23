@@ -1,94 +1,125 @@
-// Backend/src/jobs/poller.js
+// jobs/poller.js
 import Transaction from "../models/Transaction.js";
 import Asset from "../models/Asset.js";
-import { getLatestPrices } from "../services/priceService.js";
+import logger from "../utils/logger.js";
 import { emitPricesUpdate } from "../sockets/index.js";
+import { getLatestPrices } from "../services/priceService.js";
 
-const STOCK_POLL_MS = 300_000; // 5 minutes
-const CRYPTO_POLL_MS = 20_000; // 20 seconds
+const RATE_LIMIT_PER_MIN = Number(process.env.TWELVEDATA_LIMIT_PER_MIN || 8);
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // Cache expiry time
+const SYMBOLS_REFRESH_MS = 5 * 60 * 1000;
 
-// 🗂️ Collect symbols from both Transactions and Assets
-async function collectSymbolsByType() {
+const marketCache = new Map();
+let cryptoRing = [];
+let stockRing = [];
+let cryptoPtr = 0;
+let stockPtr = 0;
+let isCryptoPolling = false;
+let isStockPolling = false;
+
+function normalize(sym) {
+  return sym ? String(sym).trim().toUpperCase() : null;
+}
+
+function classifySymbol(sym) {
+  const s = normalize(sym);
+  if (!s) return null;
+  if (/^[A-Z0-9]+$/.test(s) && s.length <= 5)
+    return { type: "crypto", symbol: s };
+  return { type: "stock", symbol: s };
+}
+
+async function loadSymbolsFromDB() {
+  const raw = await Transaction.distinct("symbol");
+  const uniq = Array.from(new Set(raw.map(normalize))).filter(Boolean);
+
+  cryptoRing = uniq.filter((s) => classifySymbol(s)?.type === "crypto");
+  stockRing = uniq.filter((s) => classifySymbol(s)?.type === "stock");
+
+  if (cryptoPtr >= cryptoRing.length) cryptoPtr = 0;
+  if (stockPtr >= stockRing.length) stockPtr = 0;
+
+  logger.info(
+    `📈 Symbols loaded → crypto: ${cryptoRing.length}, stocks: ${stockRing.length}`
+  );
+}
+
+function nextBatch(ring, ptr, n) {
+  if (!ring.length) return { batch: [], newPtr: ptr };
+  const out = [];
+  let p = ptr;
+  for (let i = 0; i < Math.min(n, ring.length); i++) {
+    out.push(ring[p]);
+    p = (p + 1) % ring.length;
+  }
+  return { batch: out, newPtr: p };
+}
+
+async function doPoll(batch, type) {
+  const updates = {};
   try {
-    // Distinct transaction symbols
-    const txSymbolsRaw = await Transaction.distinct("symbol", {
-      symbol: { $exists: true, $type: "string", $ne: "" },
-    });
+    const results = await getLatestPrices(batch, type);
+    for (const sym of batch) {
+      const data = results?.[sym];
+      if (!data) continue;
 
-    // Distinct assetIds
-    const assetIds = await Transaction.distinct("assetId", {
-      assetId: { $exists: true, $type: "objectId" },
-    });
+      const price = Number(data.price);
+      if (!Number.isFinite(price)) continue;
 
-    let assetSymbolsRaw = [];
-    if (assetIds.length) {
-      const assets = await Asset.find(
-        { _id: { $in: assetIds } },
-        { symbol: 1, type: 1, _id: 0 }
-      ).lean();
+      const entry = { price, ts: Date.now(), ...data };
+      marketCache.set(sym, entry);
+      updates[sym] = entry;
 
-      assetSymbolsRaw = assets
-        .filter((a) => a.symbol)
-        .map((a) => ({
-          symbol: a.symbol.toUpperCase(),
-          type: a.type?.toLowerCase() || "unknown",
-        }));
+      await Asset.updateMany(
+        { symbol: sym },
+        { $set: { latestPrice: price, lastUpdated: new Date() } }
+      );
     }
-
-    // Merge tx + asset symbols, transactions default to unknown
-    const all = [
-      ...txSymbolsRaw.map((s) => ({
-        symbol: s.toUpperCase(),
-        type: "unknown",
-      })),
-      ...assetSymbolsRaw,
-    ];
-
-    // Deduplicate by symbol (last seen type wins)
-    const bySymbol = {};
-    for (let { symbol, type } of all) {
-      bySymbol[symbol] = type;
+    if (Object.keys(updates).length > 0) {
+      emitPricesUpdate(updates);
+      logger.info(`📣 Emitted ${Object.keys(updates).length} ${type} updates`);
     }
-
-    const stocks = Object.keys(bySymbol).filter((s) => bySymbol[s] === "stock");
-    const cryptos = Object.keys(bySymbol).filter(
-      (s) => bySymbol[s] === "crypto"
-    );
-
-    // console.log("✅ Extracted symbols:", { stocks, cryptos });
-    return { stocks, cryptos };
   } catch (err) {
-    console.error("❌ Error in collectSymbolsByType:", err.message);
-    return { stocks: [], cryptos: [] };
+    logger.error(`❌ Polling error: ${err.message}`);
   }
 }
 
+async function pollCrypto() {
+  if (isCryptoPolling) return;
+  isCryptoPolling = true;
+  const { batch, newPtr } = nextBatch(cryptoRing, cryptoPtr, 10);
+  cryptoPtr = newPtr;
+  if (batch.length) {
+    logger.info(`🪙 Polling crypto: ${batch.join(", ")}`);
+    await doPoll(batch, "crypto");
+  }
+  isCryptoPolling = false;
+}
+
+async function pollStocks() {
+  if (isStockPolling) return;
+  isStockPolling = true;
+  const { batch, newPtr } = nextBatch(stockRing, stockPtr, RATE_LIMIT_PER_MIN);
+  stockPtr = newPtr;
+  if (batch.length) {
+    logger.info(`📊 Polling stocks: ${batch.join(", ")}`);
+    await doPoll(batch, "stock");
+  }
+  isStockPolling = false;
+}
+
+export function getCachedQuote(symbol) {
+  return marketCache.get(normalize(symbol));
+}
+
+export function getAllCachedQuotes() {
+  return Object.fromEntries(marketCache.entries());
+}
+
 export async function startPoller() {
-  const { stocks, cryptos } = await collectSymbolsByType();
-
-  // --- CRYPTO POLLER ---
-  setInterval(async () => {
-    try {
-      const { cryptos } = await collectSymbolsByType();
-      if (!cryptos.length) return;
-      const prices = await getLatestPrices(cryptos, "crypto");
-      if (prices) emitPricesUpdate(Object.values(prices));
-    } catch (err) {
-      console.error("❌ Crypto poller error:", err.message);
-    }
-  }, CRYPTO_POLL_MS);
-
-  // --- STOCK POLLER ---
-  setInterval(async () => {
-    try {
-      const { stocks } = await collectSymbolsByType();
-      if (!stocks.length) return;
-      const prices = await getLatestPrices(stocks, "stock");
-      if (prices) {
-        emitPricesUpdate(Object.values(prices));
-      }
-    } catch (err) {
-      console.error("❌ Stock poller error:", err.message);
-    }
-  }, STOCK_POLL_MS);
+  await loadSymbolsFromDB();
+  setInterval(loadSymbolsFromDB, SYMBOLS_REFRESH_MS);
+  setInterval(pollCrypto, 20 * 1000); // crypto every 20s
+  setInterval(pollStocks, 2 * 60 * 1000); // stocks every 2m
+  logger.info("🚀 Poller started");
 }
