@@ -121,5 +121,6 @@ export async function startPoller() {
   setInterval(loadSymbolsFromDB, SYMBOLS_REFRESH_MS);
   setInterval(pollCrypto, 20 * 1000); // crypto every 20s
   setInterval(pollStocks, 2 * 60 * 1000); // stocks every 2m
+
   logger.info("🚀 Poller started");
 }

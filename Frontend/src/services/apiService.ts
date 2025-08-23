@@ -90,6 +90,20 @@ export const newsAPI = {
   getStockNews: (symbol: string) => apiCall(`/news/${symbol}`),
 };
 
+// ---------------- Valid Symbols ----------------
+export const validSymbolsAPI = {
+  // Get all valid symbols with optional search
+  getValidSymbols: (searchTerm = "") =>
+    apiCall(`/valid-symbols?search=${encodeURIComponent(searchTerm)}`),
+
+  // Validate a symbol
+  validateSymbol: (symbol: string, assetType?: string) =>
+    apiCall("/valid-symbols/validate", {
+      method: "POST",
+      body: JSON.stringify({ symbol, assetType }),
+    }),
+};
+
 // ---------------- Snapshots ----------------
 export const snapshotAPI = {
   // Get all snapshots for a portfolio

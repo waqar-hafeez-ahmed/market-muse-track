@@ -7,13 +7,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Loader2 } from "lucide-react";
 import { useAddHolding } from "@/hooks/usePortfolio";
+import { validSymbolsAPI } from "@/services/apiService";
 
 export function AddTransactionForm({
-  portfolioId = "68a45b0f1ec49f52c1f0c81f",
+  portfolioId,
   defaultAssetType = "stock",
   onSuccess,
 }: {
-  portfolioId?: string;
+  portfolioId: string;
   defaultAssetType?: "stock" | "crypto";
   onSuccess?: () => void;
 }) {
@@ -37,7 +38,29 @@ export function AddTransactionForm({
       return;
     }
 
+    // Validate quantity and price cannot be negative
+    if (Number(quantity) <= 0) {
+      toast.error("Quantity must be greater than 0");
+      return;
+    }
+
+    if (Number(price) <= 0) {
+      toast.error("Price must be greater than 0");
+      return;
+    }
+
     try {
+      // Validate symbol first
+      const validationResult = await validSymbolsAPI.validateSymbol(
+        symbol,
+        assetType
+      );
+
+      if (!validationResult.valid) {
+        toast.error(`Invalid symbol: ${validationResult.error}`);
+        return;
+      }
+
       await addTx.mutateAsync({
         portfolioId,
         assetType,
@@ -95,7 +118,6 @@ export function AddTransactionForm({
               >
                 <option value="stock">Stock</option>
                 <option value="crypto">Crypto</option>
-                <option value="forex">Forex</option>
               </select>
             </div>
             <div>
@@ -106,7 +128,6 @@ export function AddTransactionForm({
                 onChange={(e) => setAction(e.target.value as any)}
               >
                 <option value="BUY">Buy</option>
-                <option value="SELL">Sell</option>
               </select>
             </div>
           </div>

@@ -13,6 +13,7 @@ import newsRoutes from "./routes/news.js";
 import holdingsRoutes from "./routes/holdings.js";
 import "./jobs/snapshotJob.js";
 import snapshotRoutes from "./routes/snapShotRoutes.js";
+import validSymbolsRoutes from "./routes/validSymbolsRoutes.js";
 import { initSocket } from "./sockets/index.js"; // 👈 import our socket initializer
 
 dotenv.config();
@@ -43,6 +44,7 @@ app.use("/api/transactions", transactionsRouter); // Transactions routes
 app.use("/api/news", newsRoutes);
 app.use("/api/holdings", holdingsRoutes); // Static holdings endpoint
 app.use("/api/snapshots", snapshotRoutes);
+app.use("/api/valid-symbols", validSymbolsRoutes);
 const PORT = process.env.PORT || 4000;
 
 async function startServer() {
