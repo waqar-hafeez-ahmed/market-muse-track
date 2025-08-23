@@ -1,9 +1,15 @@
 // jobs/poller.js
 import Transaction from "../models/Transaction.js";
 import Asset from "../models/Asset.js";
+import PriceCache from "../models/PriceCache.js";
 import logger from "../utils/logger.js";
 import { emitPricesUpdate } from "../sockets/index.js";
-import { getLatestPrices } from "../services/priceService.js";
+import {
+  getLatestPrices,
+  getCryptoPrices,
+  getStockPrices,
+  cryptoSymbolToId,
+} from "../services/priceService.js";
 
 const RATE_LIMIT_PER_MIN = Number(process.env.TWELVEDATA_LIMIT_PER_MIN || 8);
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; // Cache expiry time
@@ -24,8 +30,13 @@ function normalize(sym) {
 function classifySymbol(sym) {
   const s = normalize(sym);
   if (!s) return null;
-  if (/^[A-Z0-9]+$/.test(s) && s.length <= 5)
+
+  // Check if the symbol is a known crypto symbol
+  if (cryptoSymbolToId[s]) {
     return { type: "crypto", symbol: s };
+  }
+
+  // Otherwise, classify as stock
   return { type: "stock", symbol: s };
 }
 
@@ -58,21 +69,71 @@ function nextBatch(ring, ptr, n) {
 async function doPoll(batch, type) {
   const updates = {};
   try {
-    const results = await getLatestPrices(batch, type);
+    // Bypass cache and fetch fresh data directly
+    let results = {};
+    if (type === "crypto") {
+      results = await getCryptoPrices(batch);
+    } else if (type === "stock" || type === "forex") {
+      results = await getStockPrices(batch);
+    } else {
+      const stockSymbols = batch.filter(
+        (sym) => !cryptoSymbolToId[sym.toUpperCase()]
+      );
+      const cryptoSymbols = batch.filter(
+        (sym) => cryptoSymbolToId[sym.toUpperCase()]
+      );
+      const [stocks, cryptos] = await Promise.all([
+        stockSymbols.length ? getStockPrices(stockSymbols) : {},
+        cryptoSymbols.length ? getCryptoPrices(cryptoSymbols) : {},
+      ]);
+      results = { ...stocks, ...cryptos };
+    }
     for (const sym of batch) {
       const data = results?.[sym];
-      if (!data) continue;
+      if (!data) {
+        logger.warn(`❌ No data for symbol: ${sym}`);
+        continue;
+      }
 
       const price = Number(data.price);
-      if (!Number.isFinite(price)) continue;
+      if (!Number.isFinite(price)) {
+        logger.warn(
+          `❌ Invalid price for symbol: ${sym}, price: ${data.price}`
+        );
+        continue;
+      }
 
-      const entry = { price, ts: Date.now(), ...data };
+      const entry = {
+        price,
+        ts: Date.now(),
+        previousClose: data.previousClose || null,
+        change24h: data.change24h || null,
+        currency: data.currency || "USD",
+      };
       marketCache.set(sym, entry);
       updates[sym] = entry;
+      logger.info(
+        `✅ Updated ${sym}: price=${price}, prevClose=${data.previousClose}, change24h=${data.change24h}`
+      );
 
       await Asset.updateMany(
         { symbol: sym },
         { $set: { latestPrice: price, lastUpdated: new Date() } }
+      );
+
+      // Also update PriceCache with all the fields
+      await PriceCache.updateOne(
+        { symbol: sym },
+        {
+          $set: {
+            price: price,
+            previousClose: data.previousClose || null,
+            change24h: data.change24h || null,
+            currency: data.currency || "USD",
+            lastUpdated: new Date(),
+          },
+        },
+        { upsert: true }
       );
     }
     if (Object.keys(updates).length > 0) {
@@ -119,8 +180,8 @@ export function getAllCachedQuotes() {
 export async function startPoller() {
   await loadSymbolsFromDB();
   setInterval(loadSymbolsFromDB, SYMBOLS_REFRESH_MS);
-  setInterval(pollCrypto, 20 * 1000); // crypto every 20s
-  setInterval(pollStocks, 2 * 60 * 1000); // stocks every 2m
+  setInterval(pollCrypto, 2 * 60 * 1000); // crypto every 2m
+  setInterval(pollStocks, 5 * 60 * 1000); // stocks every 5m
 
   logger.info("🚀 Poller started");
 }

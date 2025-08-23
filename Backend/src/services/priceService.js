@@ -8,7 +8,7 @@ const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
 
-const cryptoSymbolToId = {
+export const cryptoSymbolToId = {
   BTC: "bitcoin",
   ETH: "ethereum",
   SOL: "solana",
@@ -101,6 +101,9 @@ export async function getStockPrices(symbols) {
           type: inferType(sym),
           price: parseFloat(stockData.close),
           previousClose: parseFloat(stockData.previous_close) || null,
+          change24h: stockData.percent_change
+            ? parseFloat(stockData.percent_change)
+            : null,
           currency: stockData.currency || "USD",
         };
       }
@@ -113,6 +116,9 @@ export async function getStockPrices(symbols) {
             type: inferType(sym),
             price: parseFloat(stockData.close),
             previousClose: parseFloat(stockData.previous_close) || null,
+            change24h: stockData.percent_change
+              ? parseFloat(stockData.percent_change)
+              : null,
             currency: stockData.currency || "USD",
           };
         }
@@ -138,7 +144,16 @@ export async function getLatestPrices(symbols, type = "auto") {
   const results = {};
   for (const sym of symbols) {
     if (cachedPriceMap.has(sym)) {
-      results[sym] = cachedPriceMap.get(sym);
+      const cachedData = cachedPriceMap.get(sym);
+      // Ensure the cached data has the expected structure
+      results[sym] = {
+        symbol: sym,
+        price: cachedData.price,
+        previousClose: cachedData.previousClose || null,
+        change24h: cachedData.change24h || null,
+        currency: cachedData.currency || "USD",
+        type: cachedData.type || inferType(sym),
+      };
     }
   }
 
@@ -172,7 +187,15 @@ export async function getLatestPrices(symbols, type = "auto") {
       if (priceData && priceData.price) {
         await PriceCache.updateOne(
           { symbol: sym },
-          { $set: { price: priceData.price, lastUpdated: new Date() } },
+          {
+            $set: {
+              price: priceData.price,
+              previousClose: priceData.previousClose || null,
+              change24h: priceData.change24h || null,
+              currency: priceData.currency || "USD",
+              lastUpdated: new Date(),
+            },
+          },
           { upsert: true }
         );
         results[sym] = freshData[sym];
