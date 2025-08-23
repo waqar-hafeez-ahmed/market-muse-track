@@ -27,3 +27,30 @@ export const createSnapshot = async (portfolioId) => {
     return null;
   }
 };
+
+// New function to get global snapshots
+export const getGlobalSnapshots = async () => {
+  try {
+    const snapshots = await Snapshot.find({}).sort({ date: 1 });
+
+    // Aggregate snapshots by date
+    const aggregatedSnapshots = {};
+
+    snapshots.forEach((snapshot) => {
+      const date = snapshot.date.toISOString().split("T")[0]; // Get date string
+      if (!aggregatedSnapshots[date]) {
+        aggregatedSnapshots[date] = { totalValue: 0 };
+      }
+      aggregatedSnapshots[date].totalValue += snapshot.totalValue;
+    });
+
+    // Transform to array format
+    return Object.entries(aggregatedSnapshots).map(([date, data]) => ({
+      date,
+      totalValue: data.totalValue,
+    }));
+  } catch (err) {
+    console.error("❌ Error fetching global snapshots:", err.message);
+    return null;
+  }
+};

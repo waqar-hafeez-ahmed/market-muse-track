@@ -11,7 +11,7 @@ import {
   useUpdateHolding,
   useGlobalHoldings,
 } from "@/hooks/usePortfolio";
-import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
+import { useGlobalSnapshots } from "@/hooks/useGlobalSnapshots";
 
 const Index = () => {
   const { data: globalHoldings, isLoading } = useGlobalHoldings();
@@ -31,22 +31,9 @@ const Index = () => {
     isError: false,
   };
 
-  // For global performance, we can use the global holdings data
-  // This is a simplified approach - in a real app you might want a dedicated global performance endpoint
-  const performance = globalHoldings
-    ? {
-        labels: ["Total Value"],
-        datasets: [
-          {
-            label: "Portfolio Value",
-            data: [globalHoldings.kpis?.totalValue || 0],
-            backgroundColor: "rgba(34, 197, 94, 0.2)",
-            borderColor: "rgba(34, 197, 94, 1)",
-            borderWidth: 1,
-          },
-        ],
-      }
-    : null;
+  // Use global snapshots for performance chart
+  const { data: performance, loading: performanceLoading } =
+    useGlobalSnapshots();
 
   const holdings =
     globalHoldings?.holdings?.map((h: any) => ({
@@ -80,24 +67,19 @@ const Index = () => {
   const handleEditTransaction = async (id: string) => {
     console.log(id);
 
-    // Ask for price
-    const priceStr = window.prompt("Enter new price:");
-    if (!priceStr) return;
-    const price = Number(priceStr);
-    if (Number.isNaN(price)) return;
-
     // Ask for quantity
     const qtyStr = window.prompt("Enter new quantity:");
     if (!qtyStr) return;
     const quantity = Number(qtyStr);
     if (Number.isNaN(quantity)) return;
 
-    // Send both to backend
+    // Send to backend
     await updateHoldingMutation.mutateAsync({
       id,
-      updates: { price: price, quantity: quantity },
+      updates: { quantity: quantity },
     });
   };
+
   if (summary.isLoading) {
     return <div>Loading...</div>;
   }

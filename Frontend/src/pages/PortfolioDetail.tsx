@@ -91,11 +91,7 @@ const PortfolioDetail = () => {
         {/* Portfolio Header */}
         <div className="flex items-center space-x-3 mb-6">
           <h1 className="text-3xl font-bold text-foreground">
-<<<<<<< HEAD
-            {`${portfolio?.name || portfolioId}`}
-=======
             {portfolio?.name || portfolioId}
->>>>>>> 3b694e21b1419f84718b853efff4974a1e1e29cf
           </h1>
         </div>
         {/* Portfolio Summary Cards */}

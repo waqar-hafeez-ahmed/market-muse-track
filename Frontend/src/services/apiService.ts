@@ -95,4 +95,7 @@ export const snapshotAPI = {
   // Get all snapshots for a portfolio
   getSnapshots: (portfolioId: string) =>
     apiCall(`/snapshots/${encodeURIComponent(portfolioId)}`),
+
+  // Get global snapshots (aggregated across all portfolios)
+  getGlobalSnapshots: () => apiCall(`/snapshots`),
 };

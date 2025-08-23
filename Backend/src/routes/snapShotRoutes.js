@@ -1,6 +1,9 @@
 import express from "express";
 import Snapshot from "../models/DailySnapshot.js";
-import { createSnapshot } from "../services/snapShotService.js";
+import {
+  createSnapshot,
+  getGlobalSnapshots,
+} from "../services/snapShotService.js";
 
 const router = express.Router();
 
@@ -13,6 +16,17 @@ router.get("/:portfolioId", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to fetch snapshots:", err);
     res.status(500).json({ error: "Failed to fetch snapshots" });
+  }
+});
+
+// GET global snapshots (aggregated across all portfolios)
+router.get("/", async (req, res) => {
+  try {
+    const snapshots = await getGlobalSnapshots();
+    res.json(snapshots);
+  } catch (err) {
+    console.error("❌ Failed to fetch global snapshots:", err);
+    res.status(500).json({ error: "Failed to fetch global snapshots" });
   }
 });
 
