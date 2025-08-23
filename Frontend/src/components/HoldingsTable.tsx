@@ -66,7 +66,9 @@ export const HoldingsTable = ({
               <TableHead className="text-muted-foreground">
                 Average Cost/Price
               </TableHead>
-              <TableHead className="text-muted-foreground">Actions</TableHead>
+              {(onEdit || onDelete) && (
+                <TableHead className="text-muted-foreground">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -116,18 +118,22 @@ export const HoldingsTable = ({
                     ${holding.avgCost.toFixed(2)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap flex">
-                    <button
-                      onClick={() => onEdit?.(holding.id)}
-                      className="text-green-500 hover:underline flex justify-center items-center"
-                    >
-                      <SquarePen size={18} />
-                    </button>
-                    <button
-                      onClick={() => onDelete?.(holding.id)}
-                      className="text-red-500 hover:underline ml-3"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {(onEdit || onDelete) && (
+                      <>
+                        <button
+                          onClick={() => onEdit?.(holding.id)}
+                          className="text-green-500 hover:underline flex justify-center items-center"
+                        >
+                          <SquarePen size={18} />
+                        </button>
+                        <button
+                          onClick={() => onDelete?.(holding.id)}
+                          className="text-red-500 hover:underline ml-3"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               );

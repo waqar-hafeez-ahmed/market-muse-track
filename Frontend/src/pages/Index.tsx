@@ -1,16 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState } from "react";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { MarketNews } from "@/components/MarketNews";
 import { PortfolioChart } from "@/components/PortfolioChart";
-import { AddTransactionForm } from "@/components/AddHoldingForm";
-import {
-  usePortfolioHoldings,
-  usePortfolioSummary,
-  useDeleteHolding,
-  useUpdateHolding,
-  useGlobalHoldings,
-} from "@/hooks/usePortfolio";
+
+import { useGlobalHoldings } from "@/hooks/usePortfolio";
 import { useGlobalSnapshots } from "@/hooks/useGlobalSnapshots";
 
 const Index = () => {
@@ -35,6 +30,15 @@ const Index = () => {
   const { data: performance, loading: performanceLoading } =
     useGlobalSnapshots();
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<{
+    id: string;
+    symbol: string;
+    name: string;
+    price: number;
+    quantity: number;
+  } | null>(null);
+
   const holdings =
     globalHoldings?.holdings?.map((h: any) => ({
       id: h.transactionIds?.[0] || h._id, // ✅ pick the first transaction ID
@@ -52,33 +56,6 @@ const Index = () => {
         ? ((h.currentPrice - h.previousClose) / h.previousClose) * 100
         : 0, // ✅ compute if needed
     })) ?? [];
-
-  const deleteHoldingMutation = useDeleteHolding(
-    holdings.find((h) => true)?.holdingId || ""
-  );
-  const updateHoldingMutation = useUpdateHolding(
-    holdings.find((h) => true)?.holdingId || ""
-  );
-
-  const handleDeleteTransaction = async (id: string) => {
-    await deleteHoldingMutation.mutateAsync(id);
-  };
-
-  const handleEditTransaction = async (id: string) => {
-    console.log(id);
-
-    // Ask for quantity
-    const qtyStr = window.prompt("Enter new quantity:");
-    if (!qtyStr) return;
-    const quantity = Number(qtyStr);
-    if (Number.isNaN(quantity)) return;
-
-    // Send to backend
-    await updateHoldingMutation.mutateAsync({
-      id,
-      updates: { quantity: quantity },
-    });
-  };
 
   if (summary.isLoading) {
     return <div>Loading...</div>;
@@ -112,9 +89,6 @@ const Index = () => {
           totalGainLossPercent={summary.data.totalGainLossPercent}
         />
 
-        {/* Add New Holding Form */}
-        {/* <AddTransactionForm portfolioId="68a45b0f1ec49f52c1f0c81f" /> */}
-
         {/* Chart and News Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <PortfolioChart data={performance} timeRange="Last 6 Months" />
@@ -125,11 +99,7 @@ const Index = () => {
         {isLoading ? (
           <div className="text-center py-8">Loading your portfolio...</div>
         ) : (
-          <HoldingsTable
-            holdings={holdings}
-            onDelete={handleDeleteTransaction}
-            onEdit={handleEditTransaction}
-          />
+          <HoldingsTable holdings={holdings} />
         )}
       </main>
     </div>
