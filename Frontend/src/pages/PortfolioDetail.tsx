@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { HoldingsTable } from "@/components/HoldingsTable";
 import { MarketNews } from "@/components/MarketNews";
 import { PortfolioChart } from "@/components/PortfolioChart";
 import { AddTransactionForm } from "@/components/AddHoldingForm";
+import { EditTransactionModal } from "@/components/EditTransactionModal";
 import {
   useDeleteHolding,
   usePortfolioHoldings,
@@ -13,6 +15,7 @@ import {
 import { mockPortfolioData } from "@/data/mockData";
 import { getPortfolioById } from "@/data/PortfolioList";
 import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
+import { toast } from "sonner";
 
 const PortfolioDetail = () => {
   const { portfolioId } = useParams();
@@ -23,6 +26,15 @@ const PortfolioDetail = () => {
 
   const portfolio = getPortfolioById(portfolioId);
   const { data: performance, loading } = usePortfolioSnapshots(portfolioId);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<{
+    id: string;
+    symbol: string;
+    name: string;
+    price: number;
+    quantity: number;
+  } | null>(null);
 
   const holdings =
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,37 +55,47 @@ const PortfolioDetail = () => {
         : 0, // ✅ compute if needed
     })) ?? [];
 
-  const deleteHoldingMutation = useDeleteHolding(
-    holdings.find((h) => true)?.holdingId || ""
-  );
-  const updateHoldingMutation = useUpdateHolding(
-    holdings.find((h) => true)?.holdingId || ""
-  );
+  const deleteHoldingMutation = useDeleteHolding(portfolioId);
+  const updateHoldingMutation = useUpdateHolding(portfolioId);
 
   const handleDeleteTransaction = async (id: string) => {
-    await deleteHoldingMutation.mutateAsync(id);
+    try {
+      await deleteHoldingMutation.mutateAsync(id);
+      toast.success("Transaction deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete transaction");
+      console.error("Delete error:", error);
+    }
   };
 
-  const handleEditTransaction = async (id: string) => {
-    console.log(id);
+  const handleEditTransaction = (id: string) => {
+    const holding = holdings.find((h) => h.id === id);
+    if (!holding) return;
 
-    // Ask for price
-    const priceStr = window.prompt("Enter new price:");
-    if (!priceStr) return;
-    const price = Number(priceStr);
-    if (Number.isNaN(price)) return;
-
-    // Ask for quantity
-    const qtyStr = window.prompt("Enter new quantity:");
-    if (!qtyStr) return;
-    const quantity = Number(qtyStr);
-    if (Number.isNaN(quantity)) return;
-
-    // Send both to backend
-    await updateHoldingMutation.mutateAsync({
+    setEditingTransaction({
       id,
-      updates: { price: price, quantity: quantity },
+      symbol: holding.symbol,
+      name: holding.name,
+      price: holding.avgCost,
+      quantity: holding.shares,
     });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveTransaction = async (
+    id: string,
+    updates: { price: number; quantity: number }
+  ) => {
+    try {
+      await updateHoldingMutation.mutateAsync({
+        id,
+        updates,
+      });
+      toast.success("Transaction updated successfully");
+    } catch (error) {
+      toast.error("Failed to update transaction");
+      console.error("Update error:", error);
+    }
   };
 
   if (summary.isError) {
@@ -120,6 +142,23 @@ const PortfolioDetail = () => {
             holdings={holdings}
             onDelete={handleDeleteTransaction}
             onEdit={handleEditTransaction}
+          />
+        )}
+
+        {/* Edit Transaction Modal */}
+        {editingTransaction && (
+          <EditTransactionModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setEditingTransaction(null);
+            }}
+            onSave={handleSaveTransaction}
+            transactionId={editingTransaction.id}
+            initialPrice={editingTransaction.price}
+            initialQuantity={editingTransaction.quantity}
+            symbol={editingTransaction.symbol}
+            name={editingTransaction.name}
           />
         )}
       </main>
