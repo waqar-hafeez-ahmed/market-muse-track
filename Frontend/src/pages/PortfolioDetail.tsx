@@ -102,8 +102,12 @@ const PortfolioDetail = () => {
     return <div>Error loading summary</div>;
   }
 
-  if (!summary.data) {
-    return <div>No data</div>;
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!summary.data && !isLoading) {
+    return <div>Loading Data.....</div>;
   }
 
   return (
