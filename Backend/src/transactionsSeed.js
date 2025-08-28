@@ -7,11 +7,10 @@ dotenv.config();
 
 // ✅ Fixed portfolio IDs (must match seed.js)
 const PORTFOLIOS = {
-  growth: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c81f"),
-  conservative: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c820"),
-  tech: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c821"),
-  dividend: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c822"),
-  speculative: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c823"),
+  crypto1: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c81f"),
+  stocks: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c820"),
+  crypto2: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c821"),
+  crypto3: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c822"),
 };
 
 // ✅ Transactions dataset
@@ -57,11 +56,10 @@ const investments = [
 
 // ✅ Distribute investments across 5 portfolios
 const portfolioOrder = [
-  PORTFOLIOS.growth,
-  PORTFOLIOS.conservative,
-  PORTFOLIOS.tech,
-  PORTFOLIOS.dividend,
-  PORTFOLIOS.speculative,
+  PORTFOLIOS.crypto1,
+  PORTFOLIOS.stocks,
+  PORTFOLIOS.crypto2,
+  PORTFOLIOS.crypto3,
 ];
 
 const transactions = investments.map((inv, idx) => {

@@ -20,7 +20,6 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",");
 app.use(
   cors({
     origin: "*",

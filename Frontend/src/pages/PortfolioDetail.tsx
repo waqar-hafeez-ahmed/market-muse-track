@@ -12,7 +12,7 @@ import {
   usePortfolioSummary,
   useUpdateHolding,
 } from "@/hooks/usePortfolio";
-import { mockPortfolioData } from "@/data/mockData";
+
 import { getPortfolioById } from "@/data/PortfolioList";
 import { usePortfolioSnapshots } from "@/hooks/useSnaphot";
 import { toast } from "sonner";

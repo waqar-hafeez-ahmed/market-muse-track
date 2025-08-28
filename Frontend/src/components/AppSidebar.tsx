@@ -26,11 +26,10 @@ import {
 
 // Helper function to get icon based on portfolio name
 const getPortfolioIcon = (name: string) => {
-  if (name.toLowerCase().includes("growth")) return TrendingUp;
-  if (name.toLowerCase().includes("conservative")) return Briefcase;
-  if (name.toLowerCase().includes("tech")) return Zap;
-  if (name.toLowerCase().includes("dividend")) return PieChart;
-  if (name.toLowerCase().includes("speculative")) return Target;
+  if (name.toLowerCase().includes("55k")) return TrendingUp;
+  if (name.toLowerCase().includes("50k")) return Briefcase;
+  if (name.toLowerCase().includes("35k")) return Zap;
+  if (name.toLowerCase().includes("15k")) return PieChart;
   return TrendingUp;
 };
 
@@ -123,6 +122,7 @@ export function AppSidebar() {
                         >
                           <IconComponent className="h-4 w-4" />
                           {!collapsed && <span>{portfolio.name}</span>}
+                          <span className="text-xs text-gray-500"></span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

@@ -12,33 +12,27 @@ const seedPortfolios = async () => {
     const data = [
       {
         _id: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c81f"),
-        name: "Growth Portfolio",
-        description: "Aggressive growth-focused investments",
-        totalValue: 60000,
+        name: "Crypto Portfolio - 50k",
+        description: "Aggressive investments",
+        __v: 50000,
       },
       {
         _id: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c820"),
-        name: "Conservative Portfolio",
+        name: "Stocks Portfolio - 55k",
         description: "Stable and secure investments",
-        totalValue: 40000,
+        __v: 55000,
       },
       {
         _id: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c821"),
-        name: "Tech Focus Portfolio",
+        name: "Crypto Portfolio - 35k",
         description: "Investments in technology sector",
-        totalValue: 25000,
+        __v: 35000,
       },
       {
         _id: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c822"),
-        name: "Dividend Portfolio",
+        name: "Crypto Portfolio - 15k",
         description: "Dividend-paying stocks for income",
-        totalValue: 11000,
-      },
-      {
-        _id: new mongoose.Types.ObjectId("68a45b0f1ec49f52c1f0c823"),
-        name: "Speculative Portfolio",
-        description: "High-risk, high-reward bets",
-        totalValue: 1000,
+        __v: 15000,
       },
     ];
 
